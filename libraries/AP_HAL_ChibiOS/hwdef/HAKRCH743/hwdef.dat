@@ -146,8 +146,11 @@ SPIDEV icm42688_2 SPI4 DEVID1 IMU2_CS MODE3  2*MHZ 8*MHZ
 SPIDEV osd        SPI3 DEVID4 OSD_CS  MODE0 10*MHZ 10*MHZ
 
 # IMU setup
-IMU Invensensev3 SPI:icm42688_1 ROTATION_YAW_180
-IMU Invensensev3 SPI:icm42688_2 ROTATION_YAW_180
+# IMU1: empirically determined - X=ok, Y=invert, Z=invert → ROTATION_ROLL_180
+IMU Invensensev3 SPI:icm42688_1 ROTATION_ROLL_180
+# IMU2: 90deg relative to IMU1 on PCB → ROTATION_ROLL_180_YAW_90
+# If "Gyros inconsistent" PreArm appears, try ROTATION_ROLL_180_YAW_270 instead
+IMU Invensensev3 SPI:icm42688_2 ROTATION_ROLL_180_YAW_90
 
 define HAL_DEFAULT_INS_FAST_SAMPLE 3
 
