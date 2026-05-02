@@ -1,0 +1,57 @@
+Waf: Entering directory `/mnt/c/Users/schra/ardupilot/build/HAKRCH743'
+Padded 12 bytes for bootloader.bin to 18688
+Embedding file bootloader.bin:/mnt/c/Users/schra/ardupilot/Tools/bootloaders/HAKRCH743_bl.bin
+Embedding file font0.bin:libraries/AP_OSD/fonts/font0.bin
+Embedding file font1.bin:libraries/AP_OSD/fonts/font1.bin
+Embedding file font2.bin:libraries/AP_OSD/fonts/font2.bin
+Embedding file font3.bin:libraries/AP_OSD/fonts/font3.bin
+Embedding file font4.bin:libraries/AP_OSD/fonts/font4.bin
+Embedding file hwdef.dat:/mnt/c/Users/schra/ardupilot/build/HAKRCH743/hw.dat
+Generating compile_commands.json
+Build commands will be stored in build/HAKRCH743/compile_commands.json
+Generating compile_commands.json
+Build commands will be stored in build/HAKRCH743/compile_commands.json
+[ 651/1046] Compiling libraries/AP_SerialManager/AP_SerialManager.cpp
+[ 659/1046] Compiling libraries/AP_TemperatureSensor/AP_TemperatureSensor_Analog.cpp
+[ 665/1046] Compiling libraries/AP_TemperatureSensor/AP_TemperatureSensor_MAX31865.cpp
+[ 666/1046] Compiling libraries/AP_TemperatureSensor/AP_TemperatureSensor_DroneCAN.cpp
+[ 667/1046] Compiling libraries/AP_TemperatureSensor/AP_TemperatureSensor_Backend.cpp
+[ 668/1046] Compiling libraries/AP_Terrain/TerrainUtil.cpp
+[ 669/1046] Compiling libraries/AP_Terrain/TerrainMission.cpp
+[ 670/1046] Compiling libraries/AP_Terrain/TerrainIO.cpp
+[ 671/1046] Compiling libraries/AP_Terrain/TerrainGCS.cpp
+[ 672/1046] Compiling libraries/AP_Torqeedo/AP_Torqeedo.cpp
+[ 673/1046] Compiling libraries/AP_Torqeedo/AP_Torqeedo_Params.cpp
+[ 674/1046] Compiling libraries/AP_Torqeedo/AP_Torqeedo_Backend.cpp
+[ 675/1046] Compiling libraries/AP_Torqeedo/AP_Torqeedo_TQBus.cpp
+[ 676/1046] Compiling libraries/AP_Tuning/AP_Tuning.cpp
+[ 677/1046] Compiling libraries/AP_Vehicle/Parameters.cpp
+[ 678/1046] Compiling libraries/AP_VideoTX/AP_VideoTX.cpp
+[ 679/1046] Compiling libraries/AP_VideoTX/AP_SmartAudio.cpp
+[ 680/1046] Compiling libraries/AP_VideoTX/AP_Tramp.cpp
+[ 681/1046] Compiling libraries/AP_VisualOdom/AP_VisualOdom_Backend.cpp
+[ 682/1046] Compiling libraries/AP_VisualOdom/AP_VisualOdom_IntelT265.cpp
+[ 683/1046] Compiling libraries/AP_VisualOdom/AP_VisualOdom_Logging.cpp
+[ 684/1046] Compiling libraries/AP_VisualOdom/AP_VisualOdom_MAV.cpp
+[ 685/1046] Compiling libraries/AP_VisualOdom/AP_VisualOdom.cpp
+In file included from ../../libraries/AP_Math/AP_Math.h:9,
+                 from ../../libraries/AP_SerialManager/AP_SerialManager.cpp:28:
+./hwdef.h:69:34: error: 'SerialProtocol_UAVCAN' was not declared in this scope; did you mean 'SerialProtocol_SLCAN'?
+   69 | #define DEFAULT_SERIAL2_PROTOCOL SerialProtocol_UAVCAN
+      |                                  ^~~~~~~~~~~~~~~~~~~~~
+../../libraries/AP_Param/AP_Param.h:140:118: note: in definition of macro 'AP_GROUPINFO_FLAGS'
+  140 | #define AP_GROUPINFO_FLAGS(name, idx, clazz, element, def, flags) { name, AP_VAROFFSET(clazz, element), {def_value : def}, flags, idx, AP_CLASSTYPE(clazz, element)}
+      |                                                                                                                      ^~~
+../../libraries/AP_SerialManager/AP_SerialManager.cpp:207:5: note: in expansion of macro 'AP_GROUPINFO'
+  207 |     AP_GROUPINFO("2_PROTOCOL",  3, AP_SerialManager, state[2].protocol, DEFAULT_SERIAL2_PROTOCOL),
+      |     ^~~~~~~~~~~~
+../../libraries/AP_SerialManager/AP_SerialManager.cpp:207:73: note: in expansion of macro 'DEFAULT_SERIAL2_PROTOCOL'
+  207 |     AP_GROUPINFO("2_PROTOCOL",  3, AP_SerialManager, state[2].protocol, DEFAULT_SERIAL2_PROTOCOL),
+      |                                                                         ^~~~~~~~~~~~~~~~~~~~~~~~
+compilation terminated due to -Wfatal-errors.
+
+Waf: Leaving directory `/mnt/c/Users/schra/ardupilot/build/HAKRCH743'
+Build failed
+ -> task in 'objs/AP_SerialManager' failed (exit status 1): 
+	{task 139916590517056: cxx AP_SerialManager.cpp -> AP_SerialManager.cpp.0.o}
+ (run with -v to display more information)

@@ -3,7 +3,7 @@
 
 include ../omnibusf4pro/hwdef.dat
 
-SERIAL_ORDER OTG1 USART1 USART3 USART6
+SERIAL_ORDER OTG1 USART1 USART3 USART6 UART4
 
 undef PB0 PB1 PA3 PB4 PA2 PA1 PA0
 
@@ -12,6 +12,13 @@ PB1 TIM3_CH4  TIM3 PWM(2) GPIO(51) BIDIR
 PA3 TIM2_CH4  TIM2 PWM(3) GPIO(52) BIDIR
 PA2 TIM2_CH3  TIM2 PWM(4) GPIO(53)
 # PWM 5 is disabled as it shares a timer with PWM 3&4
+
+# UART4 TX available on PA0 (RSSI pad) with BRD_ALT_CONFIG=2
+PA0 UART4_TX UART4 ALT(2)
+
+# full UART4 on PA0 (RSSI pad) and PA1 (was PWM5, free in bdshot) with BRD_ALT_CONFIG=3
+PA0 UART4_TX UART4 ALT(3)
+PA1 UART4_RX UART4 ALT(3)
 
 # no space for bootloader:
 include ../include/no_bootloader_DFU.inc
