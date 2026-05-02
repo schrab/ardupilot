@@ -1,0 +1,121 @@
+# ESP32-S3 Super Mini - ArduCopter target for 2S PWM quad
+# Board: https://www.espboards.dev/esp32/esp32-s3-super-mini/
+# ESP32-S3, 240MHz dual-core, 4MB flash, 22.52x18mm
+#
+# Sensors:
+#   GY-87 (MPU6050 IMU + HMC5883L compass + BMP180 baro) - I2C
+#   VL53L1X laser rangefinder                             - I2C
+#   NMEA GPS                                              - UART1
+#
+# Pin mapping (board silkscreen -> GPIO):
+#
+# Top row (USB-C side):
+#   5V | GND | 3V3 | GPIO44(RX0) | GPIO43(TX0)
+#
+# Left column (facing USB-C up):
+#   GPIO1  GPIO2  GPIO3  GPIO4  GPIO5  GPIO6  GPIO7  GPIO8  GPIO9
+#
+# Right column:
+#   GPIO14 GPIO13 GPIO12 GPIO11 GPIO10 GPIO21 GPIO47 GPIO48(LED) GPIO38
+#
+# Avoid: GPIO 19/20 (USB D-/D+), GPIO 26-29 (PSRAM/flash), GPIO 48 (RGB LED)
+#
+# ---- Wiring summary ----
+#
+#  M1 (Front-Right) -> GPIO1    M2 (Back-Left)  -> GPIO2
+#  M3 (Front-Left)  -> GPIO3    M4 (Back-Right) -> GPIO4
+#
+#  RC IN (ELRS/SBUS/PPM) -> GPIO7
+#
+#  GPS NMEA:  RX1 -> GPIO5    TX1 -> GPIO6
+#
+#  I2C bus (GY-87 + VL53L1X, all on same bus):
+#    SDA -> GPIO8    SCL -> GPIO9
+#    GY-87 MPU6050  : 0x68
+#    GY-87 HMC5883L : 0x1E
+#    GY-87 BMP180   : 0x77
+#    VL53L1X        : 0x29
+#
+#  Battery voltage divider (ADC):
+#    VBAT_DIV -> GPIO14   (10k/2k divider for 2S, keeps pin < 3.3V)
+
+define HAL_ESP32_BOARD_NAME "esp32s3supermini"
+
+# -----I2C Bus-----
+# All sensors (GY-87 + VL53L1X) share I2C_NUM_0
+#             Port       SDA         SCL         SPEED    INTERNAL SOFT
+ESP32_I2CBUS  I2C_NUM_0  GPIO_NUM_8  GPIO_NUM_9  400*KHZ  true     false
+
+# -----INS/IMU-----
+# MPU6050 on GY-87 at I2C address 0x68 (AD0 pin = low)
+IMU Invensense I2C:0:0x68 ROTATION_NONE
+define HAL_INS_DEFAULT HAL_INS_MPU60XX_I2C
+
+# -----BARO-----
+# BMP180 on GY-87 at I2C address 0x77
+# BMP085 driver covers both BMP085 and BMP180
+BARO BMP085 I2C:0:0x77
+
+# -----COMPASS-----
+# HMC5883L on GY-87 at I2C address 0x1E
+COMPASS HMC5883 I2C:0:0x1E ROTATION_NONE
+define AP_COMPASS_HMC5843_ENABLED TRUE
+define AP_COMPASS_ENABLE_DEFAULT 1
+define AP_COMPASS_PROBING_ENABLED 1
+
+# -----ADC-----
+# GPIO14 = ADC1_CH3 on ESP32-S3, pin index 1 used as BATT_VOLT_PIN
+# Resistor divider: 10k (VBAT) + 2k (GND) -> 2k/(10k+2k) = 0.167 ratio
+# For 2S max 8.4V: 8.4 * 0.167 = 1.4V at GPIO pin (well within 3.3V limit)
+ESP32_ADC_PIN ADC_CHANNEL_3 11 1
+
+# -----WiFi (UDP MAVLink to GCS)-----
+# 2=UDP: connect GCS as UDPCL to 192.168.4.1:14550
+define HAL_ESP32_WIFI 2
+define WIFI_SSID "ardupilot"
+define WIFI_PWD "ardupilot"
+
+# -----RC Input-----
+# RMT-based receiver input (ELRS/SBUS/CRSF/PPM) on GPIO7
+define HAL_ESP32_RMT_RX_PIN_NUMBER GPIO_NUM_7
+
+# -----RC Output (PWM ESCs)-----
+# Motor order for Quad-X:
+#   M1=Front-Right  M2=Back-Left  M3=Front-Left  M4=Back-Right
+ESP32_RCOUT GPIO_NUM_1
+ESP32_RCOUT GPIO_NUM_2
+ESP32_RCOUT GPIO_NUM_3
+ESP32_RCOUT GPIO_NUM_4
+
+# -----UARTs-----
+# UART0: USB console / MAVLink  (GPIO43=TX, GPIO44=RX on ESP32-S3)
+# UART1: NMEA GPS
+#             PORT        RXPIN        TXPIN
+ESP32_SERIAL  UART_NUM_0  GPIO_NUM_44  GPIO_NUM_43
+ESP32_SERIAL  UART_NUM_1  GPIO_NUM_5   GPIO_NUM_6
+
+define AP_AIRSPEED_ENABLED 0
+
+# -----Logging & SD Card-----
+# Using SDSPI mode since SDMMC default pins aren't exposed
+define HAL_ESP32_SDSPI {.host=SPI2_HOST, .dma_ch=SPI_DMA_CH_AUTO, .mosi=GPIO_NUM_10, .miso=GPIO_NUM_11, .sclk=GPIO_NUM_12, .cs=GPIO_NUM_13}
+define HAL_ESP32_SDCARD 1
+define HAVE_FILESYSTEM_SUPPORT 1
+define HAL_OS_POSIX_IO 1
+
+define HAL_LOGGING_FILESYSTEM_ENABLED 1
+define HAL_LOGGING_DATAFLASH_ENABLED 0
+define HAL_LOGGING_MAVLINK_ENABLED 1
+define HAL_LOGGING_BACKENDS_DEFAULT 1
+
+# -----Memory / Feature reduction-----
+define AP_RCPROTOCOL_ENABLED 1
+define AP_FILESYSTEM_ESP32_ENABLED 1
+define AP_SCRIPTING_ENABLED 0
+define HAL_USE_EMPTY_STORAGE 0
+
+define AP_MOTORS_FRAME_DEFAULT_ENABLED 0
+define AP_MOTORS_FRAME_QUAD_ENABLED 1
+
+# Only build for copter
+AUTOBUILD_TARGETS Copter

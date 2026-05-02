@@ -1,0 +1,36 @@
+# ESP32-S3 Super Mini - ArduCopter defaults for 2S PWM quad
+
+# Frame
+FRAME_CLASS 1       # Quad
+FRAME_TYPE 1        # X frame
+
+# PWM ESC output (standard 50Hz PWM, suitable for 2S analog ESCs)
+MOT_PWM_TYPE 0      # Normal PWM
+RC_SPEED 400        # 400Hz PWM rate for faster ESC response
+
+# Scheduler
+SCHED_LOOP_RATE 100
+
+# Logging via SD Card
+LOG_BACKEND_TYPE 1
+LOG_DISARMED 1
+
+# Battery monitoring (ADC pin 1 = GPIO14, adjust MULT for your divider)
+# For a 10k/2k divider: BATT_VOLT_MULT = (10+2)/2 * 3.3 = ~9.9
+# Tune BATT_VOLT_MULT until reading matches actual voltage
+BATT_MONITOR 3      # Analog voltage only
+BATT_VOLT_PIN 1
+BATT_VOLT_MULT 9.9
+BATT_ARM_VOLT 6.8   # Don't arm below 3.4V/cell on 2S
+BATT_LOW_VOLT 6.6   # Low battery warning at 3.3V/cell
+BATT_CRT_VOLT 6.2   # Critical at 3.1V/cell
+
+# WiFi MAVLink
+SERIAL0_PROTOCOL 2  # MAVLink2 on USB/console
+SERIAL1_PROTOCOL 5  # GPS on UART1 (if GPS attached)
+
+# Arming checks - relax for bench testing without GPS/compass
+ARMING_CHECK 48640  # All checks except GPS and compass
+
+# RC input
+RC_PROTOCOLS 0      # Auto-detect (ELRS, SBUS, CRSF, PPM all work via RMT)
