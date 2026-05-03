@@ -6,33 +6,38 @@ ArduPilot target for the [ESP32-S3 Super Mini](https://www.espboards.dev/esp32/e
 
 This board has **no onboard IMU, barometer, or compass**.
 This target is specifically configured for:
-- **GY-87 IMU breakout** (MPU6050, HMC5883L, BMP180) via I2C
-- **VL53L1X** laser rangefinder via I2C
-- **NMEA GPS** via UART1
+- **GY-91 IMU breakout** (MPU6500 IMU, BMP280 baro) via I2C
+- **HMC5883L** separate compass board via I2C
+- **NMEA GPS** via UART1 (GPIO 11/10)
+- **SD Card** via SDSPI (GPIO 4, 5, 6, 7)
+- **ELRS Receiver** via UART2 (GPIO 44/43)
+- **PWM Motors** (GPIO 13, 12, 3, 2)
 
 ## Wiring Guide
 
 ### Motor Outputs (PWM ESCs — standard 2S compatible)
 
-| ArduCopter | GPIO | Motor (Quad-X) |
+| Motor | GPIO | Board Pin |
 |---|---|---|
-| M1 | GPIO1 | Front-Right |
-| M2 | GPIO2 | Back-Left |
-| M3 | GPIO3 | Front-Left |
-| M4 | GPIO4 | Back-Right |
+| M1 (Front-Right) | 13 | Pin 11 |
+| M2 (Back-Left) | 12 | Pin 12 |
+| M3 (Front-Left) | 3 | Pin 3 |
+| M4 (Back-Right) | 2 | Pin 2 |
 
 ### RC Input
 
 | Signal | GPIO | Notes |
 |---|---|---|
-| RC IN | GPIO7 | ELRS, SBUS, CRSF, PPM — RMT input |
+| RC IN (RX) | GPIO44 | ELRS / CRSF Receiver RX (connect to TX on ELRS) |
+| RC OUT (TX) | GPIO43 | ELRS / CRSF Receiver TX (connect to RX on ELRS) |
 
 ### UART
 
 | Port | RX | TX | Use |
 |---|---|---|---|
-| SERIAL0 | GPIO44 | GPIO43 | USB console / MAVLink |
-| SERIAL1 | GPIO5 | GPIO6 | GPS or telemetry |
+| SERIAL0 | Internal | USB-C | USB console / MAVLink |
+| SERIAL1 | GPIO11 | GPIO10 | GPS (connect GPS TX to 11, RX to 10) |
+| SERIAL2 | GPIO44 | GPIO43 | ELRS Receiver (CRSF with telemetry) |
 
 ### I2C (GY-87 + VL53L1X)
 
@@ -40,25 +45,22 @@ All I2C sensors are on the same bus:
 
 | Signal | GPIO | Notes |
 |---|---|---|
-| SDA | GPIO8 | Connect to GY-87 and VL53L1X SDA |
-| SCL | GPIO9 | Connect to GY-87 and VL53L1X SCL |
+| SDA | GPIO8 | Connect to GY-91, HMC5883L, and VL53L1X SDA |
+| SCL | GPIO9 | Connect to GY-91, HMC5883L, and VL53L1X SCL |
 
 *Note: Ensure 3.3V power is used for the sensors to avoid damaging the ESP32-S3.*
 
 ### SPI (SD Card)
 
-An SD card can be connected via SPI for logging and filesystem support.
-
-| Signal | GPIO |
-|---|---|
-| MOSI / CMD | GPIO10 |
-| MISO / D0  | GPIO11 |
-| SCK / CLK  | GPIO12 |
-| CS / D3    | GPIO13 |
+### SD Card (SDSPI)
+| MISO | 4 |
+| CLK  | 5 |
+| MOSI | 6 |
+| CS   | 7 |
 
 | Signal | GPIO | Notes |
 |---|---|---|
-| VBAT ÷ | GPIO14 | Use 10kΩ/2kΩ divider for 2S (max 3.3V at pin) |
+| VBAT ÷ | GPIO1 | Use 10kΩ/2kΩ divider for 2S (max 3.3V at pin) |
 
 ## Build
 
@@ -80,7 +82,7 @@ ESPBAUD=921600 ./waf copter --upload
 
 ## Sensor Configuration
 
-The firmware is pre-configured for the GY-87 (MPU6050 + HMC5883L + BMP180) on I2C and NMEA GPS on UART1.
+The firmware is pre-configured for the GY-91 (MPU6500 + BMP280) and a separate HMC5883L compass on I2C, and NMEA GPS on UART1.
 
 For the **VL53L1X rangefinder**, default parameters enable it on `RNGFND1`. If you need to change its configuration (e.g. maximum range), you can adjust the `RNGFND1_*` parameters via Mission Planner.
 
