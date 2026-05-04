@@ -23,45 +23,48 @@
 #include "freertos/event_groups.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
+#include "nvs_flash.h"
 #include "esp_event.h"
 #include "esp_log.h"
-#include "nvs_flash.h"
 
 #include "lwip/err.h"
 #include "lwip/sockets.h"
 #include "lwip/sys.h"
 #include "lwip/netdb.h"
 
+#include "freertos/idf_additions.h"
+
 using namespace ESP32;
 
 extern const AP_HAL::HAL& hal;
+
+#define TCP_PORT 14550
 
 WiFiDriver::WiFiDriver()
 {
     _state = NOT_INITIALIZED;
     accept_socket = -1;
-
-    for (unsigned short i = 0; i < WIFI_MAX_CONNECTION; ++i) {
-        socket_list[i] = -1;
-    }
 }
 
 void WiFiDriver::_begin(uint32_t b, uint16_t rxS, uint16_t txS)
 {
     if (_state == NOT_INITIALIZED) {
         initialize_wifi();
+        if (!start_listen()) {
+            return;
+        }
 
     // keep main tasks that need speed on CPU 0
     // pin potentially slow stuff to CPU 1, as we have disabled the WDT on that core.
     #define FASTCPU 0
     #define SLOWCPU 1
 
-	if (xTaskCreatePinnedToCore(_wifi_thread, "APM_WIFI1", Scheduler::WIFI_SS1, this, Scheduler::WIFI_PRIO1, &_wifi_task_handle, SLOWCPU) != pdPASS) {
-           hal.console->printf("FAILED to create task _wifi_thread on SLOWCPU\n");
+	if (xTaskCreatePinnedToCore(_wifi_thread2, "APM_WIFI2", Scheduler::WIFI_SS2, this, Scheduler::WIFI_PRIO2, &_wifi_task_handle, SLOWCPU) != pdPASS) {
+            hal.console->printf("FAILED to create task _wifi_thread2 on SLOWCPU\n");
         } else {
-           hal.console->printf("OK created task _wifi_thread for TCP with PORT 5760 on SLOWCPU\n");
-        }
-
+	    hal.console->printf("OK created task _wifi_thread2 for TCP on port 14550 on SLOWCPU\n"); //TCP_PORT
+    	}
+		
         _readbuf.set_size(RX_BUF_SIZE);
         _writebuf.set_size(TX_BUF_SIZE);
         _state = INITIALIZED;
@@ -79,7 +82,7 @@ void WiFiDriver::_flush()
 
 bool WiFiDriver::is_initialized()
 {
-    return _state != NOT_INITIALIZED;
+    return true;
 }
 
 bool WiFiDriver::tx_pending()
@@ -89,17 +92,11 @@ bool WiFiDriver::tx_pending()
 
 uint32_t WiFiDriver::_available()
 {
-    if (_state != CONNECTED) {
-        return 0;
-    }
     return _readbuf.available();
 }
 
 uint32_t WiFiDriver::txspace()
 {
-    if (_state != CONNECTED) {
-        return 0;
-    }
     int result =  _writebuf.space();
     result -= TX_BUF_SIZE / 4;
     return MAX(result, 0);
@@ -107,15 +104,19 @@ uint32_t WiFiDriver::txspace()
 
 ssize_t WiFiDriver::_read(uint8_t *buf, uint16_t count)
 {
-    if (_state != CONNECTED) {
-        return 0;
+    if (!_read_mutex.take_nonblocking()) {
+        return false;
     }
-    return _readbuf.read(buf, count);
+
+    auto ret = _readbuf.read(buf, count);
+
+    _read_mutex.give();
+    return ret;
 }
 
 bool WiFiDriver::start_listen()
 {
-    accept_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    accept_socket = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
     if (accept_socket < 0) {
         accept_socket = -1;
         return false;
@@ -125,85 +126,58 @@ bool WiFiDriver::start_listen()
     struct sockaddr_in destAddr;
     destAddr.sin_addr.s_addr = htonl(INADDR_ANY);
     destAddr.sin_family = AF_INET;
-    destAddr.sin_port = htons(5760);
+    destAddr.sin_port = htons(TCP_PORT);
     int err = bind(accept_socket, (struct sockaddr *)&destAddr, sizeof(destAddr));
     if (err != 0) {
         close(accept_socket);
         accept_socket = 0;
         return false;
     }
-    err = listen(accept_socket, 5);
+    err = listen(accept_socket, 1);
     if (err != 0) {
         close(accept_socket);
         accept_socket = -1;
         return false;
     }
+    fcntl(accept_socket, F_SETFL, O_NONBLOCK);
+
     return true;
 
 }
 
-bool WiFiDriver::try_accept()
+bool WiFiDriver::read_all()
 {
-    struct sockaddr_in sourceAddr;
-    socklen_t addrLen = sizeof(sourceAddr);
-    short i = available_socket();
-    if (i != WIFI_MAX_CONNECTION) {
-        socket_list[i] = accept(accept_socket, (struct sockaddr *)&sourceAddr, &addrLen);
-        if (socket_list[i] >= 0) {
-            fcntl(socket_list[i], F_SETFL, O_NONBLOCK);
-            return true;
-        }
+    _read_mutex.take_blocking();
+    struct sockaddr_in client_addr;
+    socklen_t socklen = sizeof(client_addr);
+    int count = recvfrom(accept_socket, _buffer, sizeof(_buffer) - 1, 0, (struct sockaddr *)&client_addr, &socklen);
+    if (count > 0) {
+        _readbuf.write(_buffer, count);
+        _read_mutex.give();
+    } else {
+        return false;
     }
-    return false;
-}
-
-bool WiFiDriver::read_data()
-{
-    for (unsigned short i = 0; i < WIFI_MAX_CONNECTION && socket_list[i] > -1; ++i) {
-        int count = 0;
-        do {
-            count = recv(socket_list[i], (void *)_buffer, sizeof(_buffer), 0);
-            if (count > 0) {
-                _readbuf.write(_buffer, count);
-                if (count == sizeof(_buffer)) {
-                    _more_data = true;
-                }
-            } else if (count < 0 && errno != EAGAIN) {
-                shutdown(socket_list[i], 0);
-                close(socket_list[i]);
-                socket_list[i] = -1;
-                _state = INITIALIZED;
-                return false;
-            }
-        } while (count > 0);
-    }
+    _read_mutex.give();
     return true;
 }
 
 bool WiFiDriver::write_data()
 {
-    for (unsigned short i = 0; i < WIFI_MAX_CONNECTION && socket_list[i] > -1; ++i) {
-        int count = 0;
-        _write_mutex.take_blocking();
-        do {
-            count = _writebuf.peekbytes(_buffer, sizeof(_buffer));
-            if (count > 0) {
-                count = send(socket_list[i], (void*) _buffer, count, 0);
-                if (count > 0) {
-                    _writebuf.advance(count);
-                    if (count == sizeof(_buffer)) {
-                        _more_data = true;
-                    }
-                } else if (count < 0 && errno != EAGAIN) {
-                    shutdown(socket_list[i], 0);
-                    close(socket_list[i]);
-                    socket_list[i] = -1;
-                    _state = INITIALIZED;
-                    _write_mutex.give();
-                    return false;
-                }
-            }
-        } while (count > 0);
+
+    _write_mutex.take_blocking();
+    struct sockaddr_in dest_addr;
+    dest_addr.sin_addr.s_addr = inet_addr("192.168.4.2");
+    dest_addr.sin_family = AF_INET;
+    dest_addr.sin_port = htons(TCP_PORT);
+    int count = _writebuf.peekbytes(_buffer, sizeof(_buffer));
+    if (count > 0) {
+        count = sendto(accept_socket, _buffer, count, 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+        if (count > 0) {
+            _writebuf.advance(count);
+        } else {
+            _write_mutex.give();
+            return false;
+        }
     }
     _write_mutex.give();
     return true;
@@ -245,26 +219,16 @@ static void _sta_event_handler(void* arg, esp_event_base_t event_base,
 
 void WiFiDriver::initialize_wifi()
 {
-#ifndef WIFI_PWD
-    #define WIFI_PWD "ardupilot1"
-#endif
-    //Initialize NVS
+
+# ifndef WIFI_PWD
+#define WIFI_PWD "ardupilot1"
+
+# endif
+//Initialize NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        // Preserve PHY calibration data by erasing only WiFi-related namespace
-        // PHY calibration data is stored in PHY partition, not WiFi namespace
-        nvs_handle_t nvs_handle;
-        ret = nvs_open("wifi", NVS_READWRITE, &nvs_handle);
-        if (ret == ESP_OK) {
-            // Erase only wifi namespace to preserve PHY calibration data
-            nvs_erase_all(nvs_handle);
-            nvs_commit(nvs_handle);
-            nvs_close(nvs_handle);
-        } else {
-            // If wifi namespace doesn't exist, erase entire NVS
-            ESP_ERROR_CHECK(nvs_flash_erase());
-        }
-        ret = nvs_flash_init();
+      ESP_ERROR_CHECK(nvs_flash_erase());
+      ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
 
@@ -277,15 +241,15 @@ void WiFiDriver::initialize_wifi()
 /*
 	Acting as an Access Point (softAP)
 */
-#if !WIFI_STATION
-#ifndef WIFI_SSID
-    #define WIFI_SSID "ardupilot"
-#endif
-#ifndef WIFI_CHANNEL
-	#define WIFI_CHANNEL 1
-#endif
 
-    esp_netif_create_default_wifi_ap();
+# ifndef WIFI_SSID
+#define WIFI_SSID "ardupilot"
+
+# ifndef WIFI_CHANNEL
+#define WIFI_CHANNEL 1
+
+# endif
+esp_netif_create_default_wifi_ap();
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -307,18 +271,19 @@ void WiFiDriver::initialize_wifi()
     ESP_ERROR_CHECK(esp_wifi_start());
 
     hal.console->printf("WiFi softAP init finished. SSID: %s password: %s channel: %d\n",
-                        wifi_config.ap.ssid, wifi_config.ap.password, wifi_config.ap.channel);
+                        wifi_config.ap.ssid, wifi_config.ap.password, wifi_config.channel);
 
 /*
 	Acting as a Station (WiFi Client)
 */
-#else
-#ifndef WIFI_SSID_STATION
-    #define WIFI_SSID_STATION "ardupilot"
-#endif
-#ifndef WIFI_HOSTNAME
-    #define WIFI_HOSTNAME "ArduPilotESP32"
-#endif
+
+# ifndef WIFI_SSID_STATION
+#define WIFI_SSID_STATION "ardupilot"
+
+# ifndef WIFI_HOSTNAME
+#define WIFI_HOSTNAME "ArduPilotESP32"
+
+# endif
     s_wifi_event_group = xEventGroupCreate();
     esp_netif_t *netif = esp_netif_create_default_wifi_sta();
     esp_netif_set_hostname(netif, WIFI_HOSTNAME);
@@ -341,29 +306,29 @@ void WiFiDriver::initialize_wifi()
 
     strcpy((char *)wifi_config.sta.ssid, WIFI_SSID_STATION);
     strcpy((char *)wifi_config.sta.password, WIFI_PWD);
-    wifi_config.sta.threshold.authmode = WIFI_AUTH_OPEN;
-    wifi_config.sta.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
-    ESP_ERROR_CHECK(esp_wifi_start() );
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
 
-    hal.console->printf("WiFi Station init finished. Connecting:\n");
+    ESP_LOGI(TAG, "wifi_init_sta finished.");
 
     /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
      * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
-            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-            pdFALSE, pdFALSE, portMAX_DELAY);
+                                           WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+                                           pdFALSE,
+                                           pdFALSE,
+                                           portMAX_DELAY);
 
     /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
      * happened. */
     if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "connected to ap SSID: %s password: %s",
-                 wifi_config.sta.ssid, wifi_config.sta.password);
+        ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
+                 WIFI_SSID_STATION, WIFI_PWD);
     } else if (bits & WIFI_FAIL_BIT) {
-        ESP_LOGI(TAG, "Failed to connect to SSID: %s, password: %s",
-                 wifi_config.sta.ssid, wifi_config.sta.password);
+        ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
+                 WIFI_SSID_STATION, WIFI_PWD);
     } else {
         ESP_LOGE(TAG, "UNEXPECTED EVENT");
     }
@@ -373,61 +338,18 @@ void WiFiDriver::initialize_wifi()
     ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
     vEventGroupDelete(s_wifi_event_group);
 #endif
+
 }
 
-size_t WiFiDriver::_write(const uint8_t *buffer, size_t size)
+void WiFiDriver::_wifi_thread2(void *arg)
 {
-    if (_state != CONNECTED) {
-        return 0;
-    }
-    if (!_write_mutex.take_nonblocking()) {
-        return 0;
-    }
-    size_t ret = _writebuf.write(buffer, size);
-    _write_mutex.give();
-    return ret;
-}
+    WiFiDriver *driver = (WiFiDriver *)arg;
 
-void WiFiDriver::_wifi_thread(void *arg)
-{
-    WiFiDriver *self = (WiFiDriver *) arg;
-    if (!self->start_listen()) {
-        vTaskDelete(nullptr);
-    }
     while (true) {
-        if (self->try_accept()) {
-            self->_state = CONNECTED;
-            while (true) {
-                self->_more_data = false;
-                if (!self->read_data()) {
-                    self->_state = INITIALIZED;
-                    break;
-                }
-                if (!self->write_data()) {
-                    self->_state = INITIALIZED;
-                    break;
-                }
-                if (!self->_more_data) {
-                    hal.scheduler->delay_microseconds(1000);
-                }
-            }
+        bool read_ok = driver->read_all();
+        bool write_ok = driver->write_data();
+        if (!read_ok && !write_ok) {
+            hal.scheduler->delay(1);
         }
-        hal.scheduler->delay_microseconds(10); // don't flog the thread if nothing to accept.
-
     }
-}
-
-bool WiFiDriver::_discard_input()
-{
-    return false;
-}
-
-unsigned short WiFiDriver::available_socket()
-{
-    for (unsigned short i = 0; i < WIFI_MAX_CONNECTION; ++i)
-        if (socket_list[i] == -1) {
-            return i;
-        }
-
-    return WIFI_MAX_CONNECTION;
 }

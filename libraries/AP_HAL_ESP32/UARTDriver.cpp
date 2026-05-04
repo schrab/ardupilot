@@ -38,11 +38,6 @@ void UARTDriver::vprintf(const char *fmt, va_list ap)
 
 void UARTDriver::_begin(uint32_t b, uint16_t rxS, uint16_t txS)
 {
-    // Force MAVLink protocol if not set
-    if (_protocol == 0) {
-        _protocol = 1;  // MAVLink
-    }
-    
     if (b == 0 && txS == 0 && rxS == 0 && _initialized) {
         // the thread owning this port has changed
         _uart_owner_thd = xTaskGetCurrentTaskHandle();
@@ -223,23 +218,19 @@ void IRAM_ATTR UARTDriver::_receive_timestamp_update(void)
 /*
   return timestamp estimate in microseconds for when the start of
   a nbytes packet arrived on the uart. This should be treated as a
-  time constraint, not an exact time. It is guaranteed that the
-  packet did not start being received after this time, but it
-  could have been in a system buffer before the returned time.
-  This takes account of the baudrate of the link. For transports
-  that have no baudrate (such as USB) the time estimate may be
-  less accurate.
-  A return value of zero means the HAL does not support this API
+  time estimate, not an exact time.
 */
-uint64_t UARTDriver::receive_time_constraint_us(uint16_t nbytes)
+uint64_t UARTDriver::receive_time_estimate(uint32_t nbytes)
 {
-    uint64_t last_receive_us = _receive_timestamp[_receive_timestamp_idx];
-    if (_baudrate > 0) {
-        // assume 10 bits per byte. For USB we assume zero transport delay
-        uint32_t transport_time_us = (1000000UL * 10UL / _baudrate) * (nbytes + available());
-        last_receive_us -= transport_time_us;
+    if (_receive_timestamp_idx == 0) {
+        // we haven't received any characters yet
+        return 0;
     }
-    return last_receive_us;
+    const uint64_t last_received = _receive_timestamp[_receive_timestamp_idx^1];
+    const uint32_t baud_rate = get_baudrate();
+    const uint32_t bits_per_byte = 10;
+    const uint64_t byte_time = (bits_per_byte * 1e6) / baud_rate;
+    return last_received - nbytes*byte_time;
 }
 
-}
+} // namespace ESP32

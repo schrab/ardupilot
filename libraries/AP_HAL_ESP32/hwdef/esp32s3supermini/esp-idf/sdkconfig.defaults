@@ -1,0 +1,27 @@
+# ESP32-S3 Super Mini specific ESP-IDF configuration overrides
+# This file contains only the changes needed for the Super Mini board
+# Inherits base configuration from ../esp32s3/esp-idf/sdkconfig.defaults
+
+# Flash size: 4MB (Super Mini has 4MB, not 8MB)
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+
+# Partition table: Use Super Mini specific partition table
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="../../targets/esp32s3supermini/partitions.csv"
+
+# MAC addresses: Use single MAC to prevent 28-second boot delay
+CONFIG_ESP32S3_UNIVERSAL_MAC_ADDRESSES_ONE=y
+
+# Bootloader: Enable debug logging for troubleshooting
+CONFIG_BOOTLOADER_LOG_LEVEL_DEBUG=y
+
+# USB CDC: Enable native USB console support
+CONFIG_USB_CDC_ENABLED=y
+CONFIG_ESP_CONSOLE_USB_CDC=y
+
+# Stack sizes: Increase to prevent stack overflows
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=8192
+CONFIG_ESP_TIMER_TASK_STACK_SIZE=4096
+
+# Logging: Reduce default level to prevent stack issues
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y

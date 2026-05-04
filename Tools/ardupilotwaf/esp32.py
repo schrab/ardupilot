@@ -113,10 +113,17 @@ def pre_build(self):
     lib_vars['ARDUPILOT_LIB'] = self.bldnode.find_or_declare('lib/').abspath()
     lib_vars['ARDUPILOT_BIN'] = self.bldnode.find_or_declare('lib/bin').abspath()
     target = self.env.ESP32_TARGET
+    # Check for board-specific esp-idf folder first, then fall back to parent target
+    board_esp_idf_path = f"libraries/AP_HAL_ESP32/hwdef/{self.env.BOARD}/esp-idf"
+    if os.path.exists(os.path.join(self.env.SRCROOT, board_esp_idf_path)):
+        cmake_src_path = board_esp_idf_path
+    else:
+        cmake_src_path = 'libraries/AP_HAL_ESP32/targets/'+target+'/esp-idf'
+    
     esp_idf = self.cmake(
             name='esp-idf',
             cmake_vars=lib_vars,
-            cmake_src='libraries/AP_HAL_ESP32/targets/'+target+'/esp-idf',
+            cmake_src=cmake_src_path,
             cmake_bld='esp-idf_build',
             )
 
@@ -126,8 +133,16 @@ def pre_build(self):
     # the .defaults changes. it uses a stamp to find the sdkconfig. changing
     # the sdkconfig WILL NOT cause it to be deleted as it's not an input. this
     # is by design so the user can tweak it for testing purposes.
+    
+    # Check for board-specific sdkconfig.defaults first, then fall back to parent target
+    board_sdkconfig_path = f"libraries/AP_HAL_ESP32/hwdef/{self.env.BOARD}/esp-idf/sdkconfig.defaults"
+    if os.path.exists(os.path.join(self.env.SRCROOT, board_sdkconfig_path)):
+        sdkconfig_src = self.srcnode.find_or_declare(board_sdkconfig_path)
+    else:
+        sdkconfig_src = self.srcnode.find_or_declare(self.env.AP_HAL_ESP32+"/sdkconfig.defaults")
+    
     clean_sdkconfig_task = esp_idf_showinc.create_task("clean_sdkconfig",
-        src=self.srcnode.find_or_declare(self.env.AP_HAL_ESP32+"/sdkconfig.defaults"),
+        src=sdkconfig_src,
         tgt=self.bldnode.find_or_declare("esp-idf_build/.clean-stamp-sdkconfig"))
 
     esp_idf_showinc.post()

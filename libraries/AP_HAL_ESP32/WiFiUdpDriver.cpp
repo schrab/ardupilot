@@ -220,11 +220,8 @@ void WiFiUdpDriver::initialize_wifi()
     //Initialize NVS
     esp_err_t ret = nvs_flash_init();
     if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        // NVS needs to be erased - this will clear PHY calibration data
-        // but we can't avoid it if NVS is corrupted/full
-        ESP_LOGW("WiFiUdp", "NVS full or corrupted, erasing NVS flash");
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
+      ESP_ERROR_CHECK(nvs_flash_erase());
+      ret = nvs_flash_init();
     }
     ESP_ERROR_CHECK(ret);
 
@@ -267,7 +264,7 @@ void WiFiUdpDriver::initialize_wifi()
     ESP_ERROR_CHECK(esp_wifi_start());
 
     hal.console->printf("WiFi softAP init finished. SSID: %s password: %s channel: %d\n",
-                        wifi_config.ap.ssid, wifi_config.ap.password, wifi_config.ap.channel);
+                        wifi_config.ap.ssid, wifi_config.ap.password, wifi_config.channel);
 
 /*
 	Acting as a Station (WiFi Client)
@@ -301,29 +298,29 @@ void WiFiUdpDriver::initialize_wifi()
 
     strcpy((char *)wifi_config.sta.ssid, WIFI_SSID_STATION);
     strcpy((char *)wifi_config.sta.password, WIFI_PWD);
-    wifi_config.sta.threshold.authmode = WIFI_AUTH_OPEN;
-    wifi_config.sta.sae_pwe_h2e = WPA3_SAE_PWE_BOTH;
 
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config) );
-    ESP_ERROR_CHECK(esp_wifi_start() );
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
 
-    hal.console->printf("WiFi Station init finished. Connecting:\n");
+    ESP_LOGI(TAG, "wifi_init_sta finished.");
 
     /* Waiting until either the connection is established (WIFI_CONNECTED_BIT) or connection failed for the maximum
      * number of re-tries (WIFI_FAIL_BIT). The bits are set by event_handler() (see above) */
     EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
-            WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-            pdFALSE, pdFALSE, portMAX_DELAY);
+                                           WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+                                           pdFALSE,
+                                           pdFALSE,
+                                           portMAX_DELAY);
 
     /* xEventGroupWaitBits() returns the bits before the call returned, hence we can test which event actually
      * happened. */
     if (bits & WIFI_CONNECTED_BIT) {
-        ESP_LOGI(TAG, "connected to ap SSID: %s password: %s",
-                 wifi_config.sta.ssid, wifi_config.sta.password);
+        ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
+                 WIFI_SSID_STATION, WIFI_PWD);
     } else if (bits & WIFI_FAIL_BIT) {
-        ESP_LOGI(TAG, "Failed to connect to SSID: %s, password: %s",
-                 wifi_config.sta.ssid, wifi_config.sta.password);
+        ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
+                 WIFI_SSID_STATION, WIFI_PWD);
     } else {
         ESP_LOGE(TAG, "UNEXPECTED EVENT");
     }
@@ -333,38 +330,18 @@ void WiFiUdpDriver::initialize_wifi()
     ESP_ERROR_CHECK(esp_event_handler_instance_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, instance_any_id));
     vEventGroupDelete(s_wifi_event_group);
 #endif
-}
 
-size_t WiFiUdpDriver::_write(const uint8_t *buffer, size_t size)
-{
-    if (!_write_mutex.take_nonblocking()) {
-        return 0;
-    }
-    size_t ret = _writebuf.write(buffer, size);
-    _write_mutex.give();
-    return ret;
 }
 
 void WiFiUdpDriver::_wifi_thread2(void *arg)
 {
-    WiFiUdpDriver *self = (WiFiUdpDriver *) arg;
-    while (true) {
-        struct timeval tv = {
-            .tv_sec = 0,
-            .tv_usec = 100*1000, // 10 times a sec, we try to write-all even if we read nothing , at just 1000, it floggs the APM_WIFI2 task cpu usage unnecessarily, slowing APM_WIFI1 response
-        };
-        fd_set rfds;
-        FD_ZERO(&rfds);
-        FD_SET(self->accept_socket, &rfds);
-        int s = select(self->accept_socket + 1, &rfds, NULL, NULL, &tv);
-        if (s > 0 && FD_ISSET(self->accept_socket, &rfds)) {
-            self->read_all();
-        }
-        self->write_data();
-    }
-}
+    WiFiUdpDriver *driver = (WiFiUdpDriver *)arg;
 
-bool WiFiUdpDriver::_discard_input()
-{
-    return false;
+    while (true) {
+        bool read_ok = driver->read_all();
+        bool write_ok = driver->write_data();
+        if (!read_ok && !write_ok) {
+            hal.scheduler->delay(1);
+        }
+    }
 }
