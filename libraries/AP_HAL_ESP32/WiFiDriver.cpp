@@ -80,6 +80,27 @@ void WiFiDriver::_flush()
 {
 }
 
+bool WiFiDriver::_discard_input()
+{
+    _read_mutex.take_blocking();
+    _readbuf.clear();
+    _read_mutex.give();
+    return true;
+}
+
+size_t WiFiDriver::_write(const uint8_t *buffer, size_t size)
+{
+    if (_state != CONNECTED) {
+        return 0;
+    }
+    if (!_write_mutex.take_nonblocking()) {
+        return 0;
+    }
+    size_t ret = _writebuf.write(buffer, size);
+    _write_mutex.give();
+    return ret;
+}
+
 bool WiFiDriver::is_initialized()
 {
     return true;
@@ -222,7 +243,6 @@ void WiFiDriver::initialize_wifi()
 
 # ifndef WIFI_PWD
 #define WIFI_PWD "ardupilot1"
-
 # endif
 //Initialize NVS
     esp_err_t ret = nvs_flash_init();
@@ -241,15 +261,16 @@ void WiFiDriver::initialize_wifi()
 /*
 	Acting as an Access Point (softAP)
 */
-
+#if !WIFI_STATION
 # ifndef WIFI_SSID
 #define WIFI_SSID "ardupilot"
+# endif
 
 # ifndef WIFI_CHANNEL
 #define WIFI_CHANNEL 1
-
 # endif
-esp_netif_create_default_wifi_ap();
+
+    esp_netif_create_default_wifi_ap();
 
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
@@ -271,18 +292,18 @@ esp_netif_create_default_wifi_ap();
     ESP_ERROR_CHECK(esp_wifi_start());
 
     hal.console->printf("WiFi softAP init finished. SSID: %s password: %s channel: %d\n",
-                        wifi_config.ap.ssid, wifi_config.ap.password, wifi_config.channel);
+                        wifi_config.ap.ssid, wifi_config.ap.password, wifi_config.ap.channel);
 
 /*
 	Acting as a Station (WiFi Client)
 */
-
+#else
 # ifndef WIFI_SSID_STATION
 #define WIFI_SSID_STATION "ardupilot"
+# endif
 
 # ifndef WIFI_HOSTNAME
 #define WIFI_HOSTNAME "ArduPilotESP32"
-
 # endif
     s_wifi_event_group = xEventGroupCreate();
     esp_netif_t *netif = esp_netif_create_default_wifi_sta();

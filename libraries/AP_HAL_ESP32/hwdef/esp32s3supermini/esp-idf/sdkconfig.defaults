@@ -14,9 +14,13 @@ CONFIG_ESP32S3_UNIVERSAL_MAC_ADDRESSES_ONE=y
 # Bootloader: Enable debug logging for troubleshooting
 CONFIG_BOOTLOADER_LOG_LEVEL_DEBUG=y
 
-# USB CDC: Enable native USB console support
-CONFIG_USB_CDC_ENABLED=y
-CONFIG_ESP_CONSOLE_USB_CDC=y
+# Native USB:
+# ArduPilot drives the chip's USB Serial/JTAG controller directly (see
+# AP_HAL_ESP32::USBCDC) for SERIAL0 / MAVLink. The IDF console is disabled
+# so its log text does not corrupt binary MAVLink frames sharing the same
+# USB endpoint.
+CONFIG_ESP_CONSOLE_NONE=y
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
 
 # Stack sizes: Increase to prevent stack overflows
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192

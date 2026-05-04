@@ -113,9 +113,13 @@ def pre_build(self):
     lib_vars['ARDUPILOT_LIB'] = self.bldnode.find_or_declare('lib/').abspath()
     lib_vars['ARDUPILOT_BIN'] = self.bldnode.find_or_declare('lib/bin').abspath()
     target = self.env.ESP32_TARGET
-    # Check for board-specific esp-idf folder first, then fall back to parent target
+    # Check for board-specific esp-idf folder with a full CMakeLists.txt first,
+    # then fall back to the parent target's CMakeLists.txt. A board may still
+    # provide its own sdkconfig.defaults without a CMakeLists.txt; that case is
+    # handled by the sdkconfig lookup below.
     board_esp_idf_path = f"libraries/AP_HAL_ESP32/hwdef/{self.env.BOARD}/esp-idf"
-    if os.path.exists(os.path.join(self.env.SRCROOT, board_esp_idf_path)):
+    board_cmakelists_path = os.path.join(self.env.SRCROOT, board_esp_idf_path, 'CMakeLists.txt')
+    if os.path.exists(board_cmakelists_path):
         cmake_src_path = board_esp_idf_path
     else:
         cmake_src_path = 'libraries/AP_HAL_ESP32/targets/'+target+'/esp-idf'
@@ -135,9 +139,10 @@ def pre_build(self):
     # is by design so the user can tweak it for testing purposes.
     
     # Check for board-specific sdkconfig.defaults first, then fall back to parent target
-    board_sdkconfig_path = f"libraries/AP_HAL_ESP32/hwdef/{self.env.BOARD}/esp-idf/sdkconfig.defaults"
-    if os.path.exists(os.path.join(self.env.SRCROOT, board_sdkconfig_path)):
-        sdkconfig_src = self.srcnode.find_or_declare(board_sdkconfig_path)
+    board_sdkconfig_abspath = os.path.join(self.env.SRCROOT,
+                                           f"libraries/AP_HAL_ESP32/hwdef/{self.env.BOARD}/esp-idf/sdkconfig.defaults")
+    if os.path.exists(board_sdkconfig_abspath):
+        sdkconfig_src = self.srcnode.find_or_declare(board_sdkconfig_abspath)
     else:
         sdkconfig_src = self.srcnode.find_or_declare(self.env.AP_HAL_ESP32+"/sdkconfig.defaults")
     

@@ -23,6 +23,9 @@
 #include "UARTDriver.h"
 #include "WiFiDriver.h"
 #include "WiFiUdpDriver.h"
+#ifdef HAL_USE_SERIAL0_USB
+#include "USBCDC.h"
+#endif
 #include "RCInput.h"
 #include "RCOutput.h"
 #include "GPIO.h"
@@ -33,7 +36,14 @@
 #include <AP_HAL/SIMState.h>
 #endif
 
+#ifdef HAL_USE_SERIAL0_USB
+// SERIAL0 (Console / MAVLink) routed to the chip's native USB Serial/JTAG
+// controller, equivalent to the ChibiOS HAL is_usb path used on STM32 boards.
+// The hwdef opts in by setting `define HAL_USE_SERIAL0_USB 1`.
+static ESP32::USBCDC cons;
+#else
 static ESP32::UARTDriver cons(0);
+#endif
 #ifdef HAL_ESP32_WIFI
 #if HAL_ESP32_WIFI == 1
 static ESP32::WiFiDriver serial1Driver; //tcp, client should connect to 192.168.4.1 port 5760
