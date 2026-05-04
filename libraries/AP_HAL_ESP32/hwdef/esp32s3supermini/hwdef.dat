@@ -18,6 +18,10 @@ define HAL_USE_SERIAL0_USB 1
 define HAL_STDOUT_USB 1
 define BOARD_STARTUP_DELAY 3000
 
+# Default MAVLink on USB (serial0) and UDP (serial1)
+define DEFAULT_SERIAL0_PROTOCOL 1
+define DEFAULT_SERIAL1_PROTOCOL 1
+
 # -----I2C Bus-----
 # Using your working pins 8 and 9
 ESP32_I2CBUS  I2C_NUM_0  GPIO_NUM_8  GPIO_NUM_9  100*KHZ  false     false

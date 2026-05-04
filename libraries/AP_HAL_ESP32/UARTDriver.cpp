@@ -38,6 +38,11 @@ void UARTDriver::vprintf(const char *fmt, va_list ap)
 
 void UARTDriver::_begin(uint32_t b, uint16_t rxS, uint16_t txS)
 {
+    // Force MAVLink protocol if not set
+    if (_protocol == 0) {
+        _protocol = 1;  // MAVLink
+    }
+    
     if (b == 0 && txS == 0 && rxS == 0 && _initialized) {
         // the thread owning this port has changed
         _uart_owner_thd = xTaskGetCurrentTaskHandle();
