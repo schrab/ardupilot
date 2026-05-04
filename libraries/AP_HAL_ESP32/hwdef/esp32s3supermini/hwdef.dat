@@ -9,6 +9,10 @@ define HAL_ESP32_RMT_RX_PIN_NUMBER GPIO_NUM_14
 # WiFi (Enabled - now with proper 4MB partition table)
 define HAL_ESP32_WIFI 2
 
+# WiFi AP credentials
+define WIFI_SSID "ardupilot"
+define WIFI_PWD "ardupilot123"
+
 # Console & MAVLink on Native USB
 define HAL_USE_SERIAL0_USB 1
 define HAL_STDOUT_USB 1
