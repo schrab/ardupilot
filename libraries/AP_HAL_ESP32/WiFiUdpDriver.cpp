@@ -80,6 +80,24 @@ void WiFiUdpDriver::_flush()
 {
 }
 
+bool WiFiUdpDriver::_discard_input()
+{
+    _read_mutex.take_blocking();
+    _readbuf.clear();
+    _read_mutex.give();
+    return true;
+}
+
+size_t WiFiUdpDriver::_write(const uint8_t *buffer, size_t size)
+{
+    if (!_write_mutex.take_nonblocking()) {
+        return 0;
+    }
+    size_t ret = _writebuf.write(buffer, size);
+    _write_mutex.give();
+    return ret;
+}
+
 bool WiFiUdpDriver::is_initialized()
 {
     return true;
@@ -264,7 +282,7 @@ void WiFiUdpDriver::initialize_wifi()
     ESP_ERROR_CHECK(esp_wifi_start());
 
     hal.console->printf("WiFi softAP init finished. SSID: %s password: %s channel: %d\n",
-                        wifi_config.ap.ssid, wifi_config.ap.password, wifi_config.channel);
+                        wifi_config.ap.ssid, wifi_config.ap.password, wifi_config.ap.channel);
 
 /*
 	Acting as a Station (WiFi Client)

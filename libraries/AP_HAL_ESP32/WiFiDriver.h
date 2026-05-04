@@ -57,16 +57,17 @@ private:
     ByteBuffer _readbuf{0};
     ByteBuffer _writebuf{0};
     Semaphore _write_mutex;
+    Semaphore _read_mutex;
     ConnectionState _state;
     short accept_socket;
     short socket_list[WIFI_MAX_CONNECTION];
     tskTaskControlBlock* _wifi_task_handle;
     void initialize_wifi();
-    bool read_data();
+    bool read_all();
     bool write_data();
     bool start_listen();
     bool try_accept();
-    static void _wifi_thread(void* arg);
+    static void _wifi_thread2(void* arg);
     unsigned short available_socket();
 
 protected:
