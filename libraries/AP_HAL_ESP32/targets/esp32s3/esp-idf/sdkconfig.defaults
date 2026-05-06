@@ -11,9 +11,8 @@ CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="../../esp32s3supermini/partitions.csv"
 CONFIG_PARTITION_TABLE_OFFSET=0x10000
 
-# MAC addresses: Use 1 MAC
+# MAC addresses: Use 1 MAC (default, fastest boot)
 CONFIG_ESP32S3_UNIVERSAL_MAC_ADDRESSES_ONE=y
-CONFIG_ESP_MAC_ADDR_USE_EFUSE=y
 
 # Bootloader: Enable debug logging for troubleshooting
 CONFIG_BOOTLOADER_LOG_LEVEL_DEBUG=y

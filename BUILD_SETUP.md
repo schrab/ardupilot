@@ -141,6 +141,55 @@ source ~/esp-idf/export.sh
 
 Output binary: `/home/ubuntu/ardupilot/build/esp32s3supermini/esp-idf_build/ardupilot.bin`
 
+### Auto-Copy to Windows (Post-Build)
+
+After successful build, run the copy script:
+
+```bash
+./copy_to_windows.sh
+```
+
+This copies binaries to `c:\Users\schra\ardupilot\build\esp32s3supermini\esp-idf_build\` with the structure matching your flashing command:
+- `bootloader\bootloader.bin`
+- `partition_table\partition-table.bin`
+- `ardupilot.bin` (flat)
+
+Output binary: `/home/ubuntu/ardupilot/build/esp32s3supermini/esp-idf_build/ardupilot.bin`
+
+### Auto-Copy to Windows (Post-Build)
+
+After successful build, run the copy script:
+
+```bash
+./copy_to_windows.sh
+```
+
+This copies binaries to `c:\Users\schra\ardupilot\build\esp32s3supermini\esp-idf_build\` with the structure matching your flashing command:
+- `bootloader\bootloader.bin`
+- `partition_table\partition-table.bin`
+- `ardupilot.bin` (flat)
+
+### Auto-Copy Binaries to Windows (WSL2)
+
+After successful build, run the copy script:
+
+```bash
+./copy_to_windows.sh
+```
+
+This copies binaries to `c:\Users\schra\ardupilot\build\esp32s3supermini\esp-idf_build\` with the structure matching your flashing command:
+- `bootloader\bootloader.bin`
+- `partition_table\partition-table.bin`
+- `ardupilot.bin` (flat)
+
+Now flash from Windows PoweShell:
+```powershell
+python -m esptool --chip esp32s3 --port COM14 --baud 115200 write-flash --flash-size detect `
+  0x0 c:\Users\schra\ardupilot\build\esp32s3supermini\esp-idf_build\bootloader\bootloader.bin `
+  0x10000 c:\Users\schra\ardupilot\build\esp32s3supermini\esp-idf_build\partition_table\partition-table.bin `
+  0x20000 c:\Users\schra\ardupilot\build\esp32s3supermini\esp-idf_build\ardupilot.bin
+```
+
 ## Issues & Solutions
 
 | Issue | Cause | Solution |
