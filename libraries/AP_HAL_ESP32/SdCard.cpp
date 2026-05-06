@@ -34,8 +34,8 @@
 
 #ifdef HAL_ESP32_SDCARD
 
-#if CONFIG_IDF_TARGET_ESP32S2 || CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32S3
-#define SPI_DMA_CHAN    SPI_DMA_CH_AUTO
+#if CONFIG_IDF_TARGET_ESP32S2 ||CONFIG_IDF_TARGET_ESP32C3
+#define SPI_DMA_CHAN    host.slot
 #else
 #define SPI_DMA_CHAN    1
 #endif
@@ -221,7 +221,7 @@ void mount_sdcard_spi()
         .quadhd_io_num = -1,
         .max_transfer_sz = 4000,
     };
-    ret = spi_bus_initialize((spi_host_device_t)host.slot, &bus_cfg, SPI_DMA_CHAN);
+    ret = spi_bus_initialize((spi_host_device_t)host.slot, &bus_cfg, SPI_DMA_CH_AUTO);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize bus.");
         return;
@@ -285,7 +285,3 @@ bool sdcard_retry(void)
     return true;
 }
 #endif
-
-
-
-

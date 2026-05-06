@@ -121,6 +121,11 @@ def pre_build(self):
     if os.path.exists(board_sdkconfig_path):
         import shutil
         target_sdkconfig = os.path.join(self.env.SRCROOT, cmake_src_path, 'sdkconfig.defaults')
+        base_sdkconfig = os.path.join(self.env.SRCROOT, cmake_src_path, 'sdkconfig.defaults.base')
+        # Back up the base defaults if not already backed up
+        if not os.path.exists(base_sdkconfig):
+            shutil.copy2(target_sdkconfig, base_sdkconfig)
+        # Replace with board-specific version
         shutil.copy2(board_sdkconfig_path, target_sdkconfig)
         print(f"Using board-specific sdkconfig.defaults: {board_sdkconfig_path}")
     

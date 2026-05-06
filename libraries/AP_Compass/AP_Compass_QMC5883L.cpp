@@ -87,14 +87,14 @@ bool AP_Compass_QMC5883L::init()
 {
     _dev->get_semaphore()->take_blocking();
 
-    _dev->set_retries(10);
+    _dev->set_retries(3);
 
 #if 0
     _dump_registers();
 #endif
 
     if(!_check_whoami()){
-    	 goto fail;
+     	 goto fail;
     }
 
     if (!_dev->write_register(0x0B, 0x01)||
@@ -107,9 +107,6 @@ bool AP_Compass_QMC5883L::init()
 						QMC5883L_RNG_8G)) {
     		  	  goto fail;
      }
-
-    // lower retries for run
-    _dev->set_retries(3);
 
     _dev->get_semaphore()->give();
 
