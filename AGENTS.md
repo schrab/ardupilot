@@ -145,6 +145,8 @@ cd ardupilot
 
 **Important:** Never run `waf` with `sudo`. Always call `./waf` from the repository root.
 
+**ESP32-S3 Super Mini Note**: For `esp32s3supermini`, esp-idf is cloned to `~/esp-idf/` (not `modules/esp_idf`). Use ESP-IDF v5.4.2: `cd ~/esp-idf && git checkout v5.4.2 && git submodule update --init --recursive`. Install toolchain: `./install.sh esp32s3` (installs Python deps + toolchain). Before building: `source ~/esp-idf/export.sh && cd /home/ubuntu/ardupilot && ./waf configure --board=esp32s3supermini && ./waf copter`. Missing Python packages (`empy`, `pexpect`) can be installed via `python -m pip install empy==3.3.4 pexpect`.
+
 ---
 
 ## 5. Testing
@@ -255,7 +257,7 @@ what was changed, and why.
 - **No `fixup!` commits** — squash them before requesting review.
 - One logical change per commit. Split unrelated changes into separate commits.
 - No emoji, no jokes
-- Only adjust codestyle and cleanup on what’s necessary and keep the file consistent with its current style.
+- Only adjust codestyle and cleanup on what's necessary and keep the file consistent with its current style.
 - Split large linting into separated commit but avoid them if possible.
 - Always check if a previous PR is open on this. We should avoid duplicated works on short time ( < 6 months without OP activities).
 
@@ -281,7 +283,7 @@ libraries: fix typo in AP_GPS backend selection
 5. **Check formatting**: Check the contribution matches the file code style.
 6. **Check Python linting**: Run `flake8` on modified Python files (if marked `AP_FLAKE8_CLEAN`).
 7. **Verify commit messages**: Every commit must follow the `Subsystem: description` format.
-8. **Limit format only commit**: Only adjust codestyle and cleanup on what’s necessary and keep the file consistent with its current style.
+8. **Limit format only commit**: Only adjust codestyle and cleanup on what's necessary and keep the file consistent with its current style.
 9. **No random comment around the files**: Adding comments randomly on files is useless and breaks history.
 10. **No useless code moving**: Keep the current file structure unless additions need to move code.
 11. ArduPilot uses .github/PULL_REQUEST_TEMPLATE.md .  When creating a Pull Request against the ArduPilot repository, ensure the format recommended in that template is followed, particularly the Testing list.
