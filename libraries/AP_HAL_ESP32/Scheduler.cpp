@@ -427,7 +427,9 @@ void IRAM_ATTR Scheduler::_io_thread(void* arg)
 #ifdef SCHEDDEBUG
     printf("%s:%d start \n", __PRETTY_FUNCTION__, __LINE__);
 #endif
-    mount_sdcard();
+    if (!sdcard_ready()) {
+        mount_sdcard();
+    }
     Scheduler *sched = (Scheduler *)arg;
     while (!sched->_initialized) {
         sched->delay_microseconds(1000);

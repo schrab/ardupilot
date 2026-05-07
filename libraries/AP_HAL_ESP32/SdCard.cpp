@@ -222,7 +222,7 @@ void mount_sdcard_spi()
         .max_transfer_sz = 4000,
     };
     ret = spi_bus_initialize((spi_host_device_t)host.slot, &bus_cfg, SPI_DMA_CH_AUTO);
-    if (ret != ESP_OK) {
+    if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
         ESP_LOGE(TAG, "Failed to initialize bus.");
         return;
     }
@@ -254,6 +254,11 @@ void mount_sdcard()
 }
 
 #endif // end spi
+
+bool sdcard_ready(void)
+{
+    return sdcard_running;
+}
 
 bool sdcard_retry(void)
 {
