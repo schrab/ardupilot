@@ -4,7 +4,7 @@
 MCU ESP32S3
 
 define HAL_ESP32_BOARD_NAME "esp32s3supermini"
-define HAL_ESP32_RMT_RX_PIN_NUMBER GPIO_NUM_14
+define HAL_ESP32_RMT_RX_PIN_NUMBER GPIO_NUM_NC
 
 # WiFi (Enabled - now with proper 4MB partition table)
 define HAL_ESP32_WIFI 2
@@ -53,7 +53,7 @@ ESP32_RCOUT GPIO_NUM_21
 # -----UARTs-----
 # UART1: GPS (Safe Pads 15/16)
 ESP32_SERIAL  UART_NUM_1  GPIO_NUM_16  GPIO_NUM_15
-# UART2: ELRS (Safe Internal 44/43)
+# UART2: Reserved for MTF-01 ToF/Flow sensor (Safe Internal 44/43)
 ESP32_SERIAL  UART_NUM_2  GPIO_NUM_44  GPIO_NUM_43
 
 # -----Logging & SD Card-----
