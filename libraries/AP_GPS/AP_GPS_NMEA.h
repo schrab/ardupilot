@@ -262,6 +262,12 @@ private:
     // last time we sent type specific config strings
     uint32_t last_config_ms;
 
+#if AP_GPS_NMEA_PCAS_ENABLED
+    // PCAS (ATGM336H) baud/rate config state machine
+    uint8_t _pcas_state = 0;
+    uint32_t _pcas_timestamp = 0;
+#endif
+
     // send type specific config strings
     void send_config(void);
 };
