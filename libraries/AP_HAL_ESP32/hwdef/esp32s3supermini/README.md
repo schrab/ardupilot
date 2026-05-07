@@ -13,7 +13,7 @@ ArduPilot target for the [ESP32-S3 Super Mini](https://www.espboards.dev/esp32/e
 Target is configured for:
 - **GY-91 IMU breakout** (MPU6500 + BMP280) via I2C (0x68/0x69 for MPU6500, 0x76/0x77 for BMP280)
 - **HMC5883L/QMC5883L** compass via I2C (0x1E/0x0D)
-- **NMEA GPS** via UART1 (GPIO16/15)
+- **NMEA GPS** via UART1 (GPIO16 RX / GPIO15 TX)
 - **SD Card** via SDSPI (GPIO4/5/6/7)
 - **ELRS Receiver (CRSF)** via UART2 (GPIO44/43)
 - **PWM Motors** (GPIO2/17/18/21)
@@ -38,10 +38,10 @@ Updated to match `hwdef.dat` (previous pins 13/12/3/2 deprecated):
 
 ### UART Mapping (from `hwdef.dat`)
 | Port | RX GPIO | TX GPIO | Use |
-|---|---|---|---|
-| SERIAL0 | Internal | USB-C | USB console / MAVLink (DEFAULT_SERIAL0_PROTOCOL=1) |
-| SERIAL1 | GPIO16 | GPIO15 | GPS (DEFAULT_SERIAL1_PROTOCOL=1) |
-| SERIAL2 | GPIO44 | GPIO43 | ELRS Receiver (CRSF) |
+|---|---|---|---|---|
+| SERIAL0 | Internal | WiFi | MAVLink2 over WiFi UDP (SERIAL0_PROTOCOL=2) |
+| SERIAL1 | GPIO16 | GPIO15 | GPS / USB Console (SERIAL1_PROTOCOL=5) |
+| SERIAL2 | GPIO44 | GPIO43 | ELRS Receiver CRSF (SERIAL2_PROTOCOL=23) |
 
 ### I2C Bus (from `hwdef.dat`)
 All I2C sensors share bus `I2C_NUM_0` (100KHz):
@@ -126,6 +126,7 @@ The ~10s gap between `ALLOC: skipped` and `QMC5883L found` is spent in:
 - `printf` on ESP32 USB-CDC is **buffered** — `fflush(stdout)` is required to see output in serial logs
 - `GCS_SEND_TEXT` routes over MAVLink (WiFi UDP), not serial console
 - ESP-IDF debug logs prefixed with `I (ms)` use millisecond timestamps from app_main()
+- GPS on SERIAL1 (UART1) shares the `cons` UART — console output interleaves with GPS data on GPIO16/15
 
 ### First Boot vs Subsequent Boots
 - **First boot**: Full baro calibration runs, WiFi AP setup, NVS partition init — slowest

@@ -23,7 +23,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "esp_task_wdt.h"
+
 
 
 using namespace ESP32;
@@ -49,18 +49,7 @@ void IRAM_ATTR DeviceBus::bus_thread(void *arg)
 #endif
     struct DeviceBus *binfo = (struct DeviceBus *)arg;
 
-    // Subscribe this thread to the task watchdog so we can reset it
-    if (ESP_OK != esp_task_wdt_add(NULL)) {
-        printf("DeviceBus::bus_thread: esp_task_wdt_add(NULL) failed\n");
-    }
-
     while (true) {
-        // Reset watchdog at the start of each iteration to prevent timeout
-        // during long I2C/SPI operations
-        if (ESP_OK != esp_task_wdt_reset()) {
-            printf("DeviceBus::bus_thread: esp_task_wdt_reset() failed\n");
-        }
-
         uint64_t now = AP_HAL::micros64();
         DeviceBus::callback_info *callback;
 
@@ -72,11 +61,6 @@ void IRAM_ATTR DeviceBus::bus_thread(void *arg)
                 }
                 // call it with semaphore held
                 if (binfo->semaphore.take(HAL_SEMAPHORE_BLOCK_FOREVER)) {
-                    // Reset watchdog immediately before calling the callback,
-                    // as I2C read operations can block for extended periods
-                    if (ESP_OK != esp_task_wdt_reset()) {
-                        printf("DeviceBus::bus_thread: esp_task_wdt_reset() before cb failed\n");
-                    }
                     callback->cb();
                     binfo->semaphore.give();
                 }

@@ -45,8 +45,8 @@ static Empty::UARTDriver serial1Driver;
 #else
 static Empty::UARTDriver serial1Driver;
 #endif
-static ESP32::UARTDriver serial2Driver(2);
-static ESP32::UARTDriver serial3Driver(1);
+static ESP32::UARTDriver serial2Driver(1);
+static ESP32::UARTDriver serial3Driver(2);
 static Empty::UARTDriver serial4Driver;
 static Empty::UARTDriver serial5Driver;
 static Empty::UARTDriver serial6Driver;
@@ -94,8 +94,8 @@ extern const AP_HAL::HAL& hal;
 
 HAL_ESP32::HAL_ESP32() :
     AP_HAL::HAL(
-        &cons, //Console/mavlink
-        &serial1Driver, //Telem 1
+        &serial1Driver, //Console/mavlink via WiFi UDP
+        &cons, //Telem 1 / GPS on UART1 (GPIO16/15)
         &serial2Driver, //Telem 2
         &serial3Driver, //GPS 1
         &serial4Driver, //GPS 2
