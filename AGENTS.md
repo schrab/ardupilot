@@ -361,3 +361,14 @@ Open a discussion before writing code if:
 - **Do not move functions around without goal**: Keep the original code structure as possible.
 - **Do not add comment on all functions/lines**: Document only what was change and useful for future reading.
 - **Do not duplicate PRs**: If a PR was already open on a feature/bugfix/changes recently, do not duplicate it.
+
+## 11. ESP32-S3 Super Mini Flash Workflow
+
+When building for `esp32s3supermini` and the user wants to flash:
+
+1. **Build** in WSL: `source ~/esp-idf/export.sh && ./waf configure --board=esp32s3supermini && ./waf copter`
+2. **Copy binaries** from WSL build dir to Windows: `cp /home/ubuntu/ardupilot/build/esp32s3supermini/esp-idf_build/*.bin /mnt/c/Users/schra/ardupilot/build/esp32s3supermini/esp-idf_build/`
+3. **Flash from Windows PowerShell** via WSL: `powershell.exe -Command "cd C:\Users\schra\ardupilot\build\esp32s3supermini\esp-idf_build\; esptool --chip esp32s3 --port COM14 --baud 921600 --before default-reset --after hard-reset write-flash --flash-mode dio --flash-size 4MB --flash-freq 80m 0x0 bootloader.bin 0x10000 partition-table.bin 0x20000 ardupilot.bin"`
+   - Adjust `COM14` to the actual port if different.
+   - Bootloader and partition-table only need re-flashing if they changed.
+   - If only `ardupilot.bin` changed, flash just app: replace the three offset:file pairs with `0x20000 ardupilot.bin` only.
