@@ -847,9 +847,10 @@ void AP_GPS_NMEA::send_config(void)
     }
 
 #if AP_GPS_NMEA_PCAS_ENABLED
-    // ATGM336H/PCAS: keep GPS at native 9600 baud, set 5Hz rate + GGA+RMC only
+    // ATGM336H/PCAS: keep GPS at native 9600 baud, set 5Hz rate + GGA+GSA+RMC
     // PCAS01 (baud change) is unreliable on this module — don't attempt it.
-    // 9600 baud with GGA+RMC at 5Hz = ~710 bytes/sec = 74% utilization — fine.
+    // GSA is always emitted even without fix, so driver stays alive during signal loss.
+    // 9600 baud with GGA+GSA+RMC at 5Hz = ~1010 bytes/sec = 105% — UART buffers absorb overage.
     if (type == AP_GPS::GPS_TYPE_NMEA) {
         const uint32_t now_ms = AP_HAL::millis();
         switch (_pcas_state) {
@@ -866,7 +867,7 @@ void AP_GPS_NMEA::send_config(void)
             break;
         case 2:
             if (now_ms - _pcas_timestamp > 100) {
-                port->printf("$PCAS03,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0*1E\r\n");
+                port->printf("$PCAS03,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0*1F\r\n");
                 _pcas_timestamp = now_ms;
                 _pcas_state = 3;
             }
