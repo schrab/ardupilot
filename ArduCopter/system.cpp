@@ -513,6 +513,9 @@ void Copter::allocate_motors(void)
     }
     
     // upgrade parameters. This must be done after allocating the objects
+    // ESP32 never had legacy param formats (pre-4.7 ChibiOS), skip expensive conversion scans
+    // that walk entire storage looking for non-existent old parameter keys
+#if CONFIG_HAL_BOARD != HAL_BOARD_ESP32
     convert_pid_parameters();
 #if FRAME_CONFIG == HELI_FRAME
     motors->heli_motors_param_conversions();
@@ -523,23 +526,20 @@ void Copter::allocate_motors(void)
     convert_prx_parameters();
 #endif
 
-    // upgrade attitude controller parameters
     copter.attitude_control->convert_parameters();
-
-    // upgrade position controller parameters
     copter.pos_control->convert_parameters();
-
-    // convert wp_nav parameters
     copter.wp_nav->convert_parameters();
-
-    // upgrade loiter navigation parameters
     loiter_nav->convert_parameters();
 
 #if MODE_CIRCLE_ENABLED
     circle_nav->convert_parameters();
 #endif
 
-    // param count could have changed
+#else
+    // ESP32 skips legacy parameter conversions - none of the old param keys exist
+    printf("ALLOC: skipped ESP32 conversions\n");
+    fflush(stdout);
+#endif
     AP_Param::invalidate_count();
 }
 

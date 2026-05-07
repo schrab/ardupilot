@@ -204,11 +204,18 @@ bool Scheduler::thread_create(AP_HAL::MemberProc proc, const char *name, uint32_
 void IRAM_ATTR Scheduler::delay(uint16_t ms)
 {
     uint64_t start = AP_HAL::micros64();
+    uint32_t last_wdt_reset = 0;
     while ((AP_HAL::micros64() - start)/1000 < ms) {
         delay_microseconds(1000);
         if (_min_delay_cb_ms <= ms) {
             if (in_main_thread()) {
                 call_delay_cb();
+                // reset watchdog during long delays to prevent timeout during setup
+                uint32_t elapsed = (AP_HAL::micros64() - start)/1000;
+                if (elapsed - last_wdt_reset >= 1000) {
+                    esp_task_wdt_reset();
+                    last_wdt_reset = elapsed;
+                }
             }
         }
     }
@@ -557,14 +564,21 @@ void IRAM_ATTR Scheduler::_main_thread(void *arg)
     sched->set_system_initialized();
 
     //initialize WTD for current thread on FASTCPU, all cores will be (1 << CONFIG_FREERTOS_NUMBER_OF_CORES) - 1
-    wdt_init( TWDT_TIMEOUT_MS, 1 << FASTCPU ); // 3 sec
+    // Use 0 for idle_core_mask to avoid false positives from idle task starvation during heavy init
+    wdt_init( TWDT_TIMEOUT_MS, 0 ); // 3 sec
 
 
 #ifdef SCHEDDEBUG
     printf("%s:%d initialised\n", __PRETTY_FUNCTION__, __LINE__);
 #endif
     while (true) {
+        if (ESP_OK != esp_task_wdt_reset()) {
+            printf("esp_task_wdt_reset() failed\n");
+        };
         sched->callbacks->loop();
+        if (ESP_OK != esp_task_wdt_reset()) {
+            printf("esp_task_wdt_reset() failed\n");
+        };
         sched->delay_microseconds(250);
 
         // run stats periodically

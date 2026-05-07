@@ -95,6 +95,60 @@ Connect via WiFi UDP:
 - SSID: `ardupilot` / Password: `ardupilot123` (updated from `hwdef.dat`)
 - In Mission Planner: UDP Client → `192.168.4.1:14550`
 
+## Boot Troubleshooting & Known Issues
+
+### Watchdog Crash on First Boot
+The ESP32 task watchdog (`task_wdt`) monitors `APM_MAIN` on CPU0 with a 3s timeout. During boot, `Scheduler::setup()` calls `callbacks->setup()` which runs the entire `init_ardupilot()` sequence — baro calibration, INS calibration, etc. — before the main loop starts feeding the watchdog. This can easily exceed 3s.
+
+**Fixes applied:**
+1. `Scheduler.cpp` — watchdog reset added to `delay()` (every 1s) for long blocking delays in main thread
+2. `Scheduler.cpp` — watchdog reset added at start of main loop before `callbacks->loop()` and after it returns
+3. `Scheduler.cpp` — `idle_core_mask` set to `0` instead of `(1 << FASTCPU)` to prevent false positives from idle task starvation when UART/TIMER/MAIN threads are busy during init
+4. `system.cpp` — legacy parameter conversions skipped on ESP32 (`#if CONFIG_HAL_BOARD != HAL_BOARD_ESP32`), saving ~7s of NVS storage scanning
+
+### Boot Timeline
+Typical first boot (after all fixes):
+```
+~0.9s   sdcard is mounted
+~1.0s   ALLOC: skipped ESP32 conversions
+~11s    QMC5883L found on bus 0 id xxx address 0x0d
+~17s    eFuse MAC_CUSTOM is empty (harmless ESP-IDF WiFi warning)
+>20s    Fully initialized, stable operation
+```
+
+The ~10s gap between `ALLOC: skipped` and `QMC5883L found` is spent in:
+- `barometer.calibrate()` — 10 iterations of waiting for BMP280 `healthy()` + 5 averaging samples
+- `ins.init()` — gyro calibration requiring sensor warmup
+- `ahrs.reset()` — attitude heading reference system initialization
+- Various other init steps (GPS, RC, compass probing, WiFi AP setup)
+
+### Serial Output Notes
+- `printf` on ESP32 USB-CDC is **buffered** — `fflush(stdout)` is required to see output in serial logs
+- `GCS_SEND_TEXT` routes over MAVLink (WiFi UDP), not serial console
+- ESP-IDF debug logs prefixed with `I (ms)` use millisecond timestamps from app_main()
+
+### First Boot vs Subsequent Boots
+- **First boot**: Full baro calibration runs, WiFi AP setup, NVS partition init — slowest
+- **After watchdog reset**: `was_watchdog_reset()` returns true, baro calibration may be skipped
+- **Normal reboot**: All caches warm, NVS initialized, fastest boot path
+
+### "eFuse MAC_CUSTOM is empty" Error
+This is an ESP-IDF warning (not ArduPilot) printed at ~17s. It occurs when no custom MAC address is stored in eFuse. WiFi falls back to the default MAC from BLK0. **Harmless** — does not affect functionality.
+
+### Partition Table
+| Label | Offset | Size |
+|---|---|---|
+| nvs | 0x11000 | 0x9000 (36KB) |
+| phy_init | 0x1A000 | 0x1000 (4KB) |
+| factory | 0x20000 | 0x200000 (2MB) |
+| storage | 0x220000 | 0x57000 (356KB) |
+
+Flash with all three binaries:
+```
+esptool --chip esp32s3 --port COM14 --baud 230400 write-flash \
+  0x0 bootloader.bin 0x10000 partition-table.bin 0x20000 ardupilot.bin
+```
+
 ## Key Build Defines (from `hwdef.dat`)
 | Define | Value | Purpose |
 |---|---|---|
