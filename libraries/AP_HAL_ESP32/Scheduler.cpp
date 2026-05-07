@@ -207,15 +207,15 @@ void IRAM_ATTR Scheduler::delay(uint16_t ms)
     uint32_t last_wdt_reset = 0;
     while ((AP_HAL::micros64() - start)/1000 < ms) {
         delay_microseconds(1000);
-        if (_min_delay_cb_ms <= ms) {
-            if (in_main_thread()) {
+        // reset watchdog every 500ms in main thread to prevent timeout
+        if (in_main_thread()) {
+            uint32_t elapsed = (AP_HAL::micros64() - start)/1000;
+            if (elapsed - last_wdt_reset >= 500) {
+                esp_task_wdt_reset();
+                last_wdt_reset = elapsed;
+            }
+            if (_min_delay_cb_ms <= ms) {
                 call_delay_cb();
-                // reset watchdog during long delays to prevent timeout during setup
-                uint32_t elapsed = (AP_HAL::micros64() - start)/1000;
-                if (elapsed - last_wdt_reset >= 1000) {
-                    esp_task_wdt_reset();
-                    last_wdt_reset = elapsed;
-                }
             }
         }
     }
@@ -597,6 +597,10 @@ void IRAM_ATTR Scheduler::_main_thread(void *arg)
             printf("esp_task_wdt_reset() failed\n");
         };
         sched->delay_microseconds(250);
+        // additional watchdog reset after delay to ensure frequent resets
+        if (ESP_OK != esp_task_wdt_reset()) {
+            printf("esp_task_wdt_reset() failed\n");
+        };
 
         // run stats periodically
 #ifdef SCHEDDEBUG

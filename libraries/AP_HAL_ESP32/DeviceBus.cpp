@@ -23,6 +23,7 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_task_wdt.h"
 
 
 
@@ -91,6 +92,8 @@ void IRAM_ATTR DeviceBus::bus_thread(void *arg)
         if (delay < 100) {
             delay = 100;
         }
+        // reset watchdog before delay to prevent timeout during I2C/SPI operations
+        esp_task_wdt_reset();
         hal.scheduler->delay_microseconds(delay);
     }
     return;
