@@ -211,7 +211,10 @@ void IRAM_ATTR Scheduler::delay(uint16_t ms)
         if (in_main_thread()) {
             uint32_t elapsed = (AP_HAL::micros64() - start)/1000;
             if (elapsed - last_wdt_reset >= 500) {
-                esp_task_wdt_reset();
+                esp_err_t wdt_result = esp_task_wdt_reset();
+                if (wdt_result != ESP_OK && wdt_result != ESP_ERR_NOT_FOUND) {
+                    printf("wdt_reset failed in delay: %s\n", esp_err_to_name(wdt_result));
+                }
                 last_wdt_reset = elapsed;
             }
             if (_min_delay_cb_ms <= ms) {
@@ -589,17 +592,21 @@ void IRAM_ATTR Scheduler::_main_thread(void *arg)
     printf("%s:%d initialised\n", __PRETTY_FUNCTION__, __LINE__);
 #endif
     while (true) {
-        if (ESP_OK != esp_task_wdt_reset()) {
-            printf("esp_task_wdt_reset() failed\n");
+        // Only reset watchdog if task is properly registered to prevent error spam
+        esp_err_t wdt_result = esp_task_wdt_reset();
+        if (wdt_result != ESP_OK && wdt_result != ESP_ERR_NOT_FOUND) {
+            printf("esp_task_wdt_reset() failed: %s\n", esp_err_to_name(wdt_result));
         };
         sched->callbacks->loop();
-        if (ESP_OK != esp_task_wdt_reset()) {
-            printf("esp_task_wdt_reset() failed\n");
+        wdt_result = esp_task_wdt_reset();
+        if (wdt_result != ESP_OK && wdt_result != ESP_ERR_NOT_FOUND) {
+            printf("esp_task_wdt_reset() failed: %s\n", esp_err_to_name(wdt_result));
         };
         sched->delay_microseconds(250);
         // additional watchdog reset after delay to ensure frequent resets
-        if (ESP_OK != esp_task_wdt_reset()) {
-            printf("esp_task_wdt_reset() failed\n");
+        wdt_result = esp_task_wdt_reset();
+        if (wdt_result != ESP_OK && wdt_result != ESP_ERR_NOT_FOUND) {
+            printf("esp_task_wdt_reset() failed: %s\n", esp_err_to_name(wdt_result));
         };
 
         // run stats periodically
