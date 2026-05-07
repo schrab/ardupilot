@@ -847,30 +847,54 @@ void AP_GPS_NMEA::send_config(void)
     }
 
 #if AP_GPS_NMEA_PCAS_ENABLED
-    // ATGM336H/PCAS configuration: safe rate at 9600 baud (no baud change)
+    // ATGM336H/PCAS: keep GPS at native 9600 baud, set 5Hz rate + GGA+RMC only
+    // PCAS01 (baud change) is unreliable on this module — don't attempt it.
+    // 9600 baud with GGA+RMC at 5Hz = ~710 bytes/sec = 74% utilization — fine.
     if (type == AP_GPS::GPS_TYPE_NMEA) {
         const uint32_t now_ms = AP_HAL::millis();
         switch (_pcas_state) {
         case 0:
-            // Wait 3s for GPS to stabilize after detection, then configure
             _pcas_timestamp = now_ms;
             _pcas_state = 1;
             break;
         case 1:
             if (now_ms - _pcas_timestamp > 3000) {
-                // Set 5Hz rate (200ms), enable GPS+BDS, minimal sentences
                 port->printf("$PCAS02,200*1D\r\n");
-                port->printf("$PCAS03,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0*1E\r\n");
-                port->printf("$PCAS04,1*18\r\n");
-                port->printf("$PCAS04,3*1A\r\n");
+                _pcas_timestamp = now_ms;
                 _pcas_state = 2;
             }
             break;
         case 2:
+            if (now_ms - _pcas_timestamp > 100) {
+                port->printf("$PCAS03,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0*1E\r\n");
+                _pcas_timestamp = now_ms;
+                _pcas_state = 3;
+            }
+            break;
+        case 3:
+            if (now_ms - _pcas_timestamp > 100) {
+                port->printf("$PCAS04,3*1A\r\n");
+                _pcas_timestamp = now_ms;
+                _pcas_state = 4;
+            }
+            break;
+        case 4:
+            if (now_ms - _pcas_timestamp > 100) {
+                port->printf("$PCAS02,200*1D\r\n");
+                _pcas_timestamp = now_ms;
+                _pcas_state = 5;
+            }
+            break;
+        case 5:
+            if (now_ms - _pcas_timestamp > 100) {
+                _pcas_state = 6;
+            }
+            break;
+        case 6:
         default:
             break;
         }
-        if (_pcas_state != 2) {
+        if (_pcas_state != 6) {
             return;
         }
     }
