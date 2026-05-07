@@ -559,13 +559,28 @@ void IRAM_ATTR Scheduler::_main_thread(void *arg)
 #endif
     hal.rcout->init();
 
+    // Initialize WDT globally before setup() so I2C/SPI bus threads
+    // can add themselves and reset without "TWDT was never initialized" errors.
+    // Don't subscribe this thread yet — setup() can block on I2C for >8s.
+    {
+        esp_task_wdt_config_t config = {
+            .timeout_ms = TWDT_TIMEOUT_MS,
+            .idle_core_mask = 0,
+            .trigger_panic = true
+        };
+        if (ESP_OK != esp_task_wdt_init(&config)) {
+            printf("esp_task_wdt_init() failed\n");
+        }
+    }
+
     sched->callbacks->setup();
 
     sched->set_system_initialized();
 
-    //initialize WTD for current thread on FASTCPU, all cores will be (1 << CONFIG_FREERTOS_NUMBER_OF_CORES) - 1
-    // Use 0 for idle_core_mask to avoid false positives from idle task starvation during heavy init
-    wdt_init( TWDT_TIMEOUT_MS, 0 ); // 3 sec
+    // Subscribe main thread now that setup() is done
+    if (ESP_OK != esp_task_wdt_add(NULL)) {
+        printf("esp_task_wdt_add(NULL) failed");
+    }
 
 
 #ifdef SCHEDDEBUG
