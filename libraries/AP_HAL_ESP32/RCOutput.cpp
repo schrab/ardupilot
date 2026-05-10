@@ -109,10 +109,6 @@ void RCOutput::init()
     rtc_gpio_deinit(GPIO_NUM_33);
 #endif
 
-    printf("oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo\n");
-    printf("RCOutput::init() - channels available: %d \n",(int)MAX_CHANNELS);
-    printf("oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo\n");
-
     _initialized = true; // assume we are initialized, any error will call abort()
 
     RCOutput::pwm_group *curr_group = &pwm_group_list[0];
@@ -612,3 +608,49 @@ void RCOutput::set_failsafe_pwm(uint32_t chmask, uint16_t period_us)
 {
     //RIP (not the pointer)
 }
+
+#if HAL_SERIALLED_ENABLED
+/*
+  setup serial led output for a given channel number, with
+  the given max number of LEDs in the chain.
+*/
+bool RCOutput::set_serial_led_num_LEDs(const uint16_t chan, uint8_t num_leds, output_mode mode, uint32_t clock_mask)
+{
+    if (!_initialized) {
+        return false;
+    }
+
+    if (!_serial_led.initialized()) {
+        if (!_serial_led.init()) {
+            return false;
+        }
+    }
+
+    return _serial_led.set_num_leds(chan, num_leds, mode);
+}
+
+/*
+  set RGB value on LED number. LED number -1 is all LEDs. First LED is 0.
+*/
+bool RCOutput::set_serial_led_rgb_data(const uint16_t chan, int8_t led, uint8_t red, uint8_t green, uint8_t blue)
+{
+    if (!_initialized || !_serial_led.initialized()) {
+        return false;
+    }
+
+    return _serial_led.set_rgb_data(chan, led, red, green, blue);
+}
+
+/*
+  send a set of Serial LED packets for a channel
+  return true if send was successful
+*/
+bool RCOutput::serial_led_send(const uint16_t chan)
+{
+    if (!_initialized || !_serial_led.initialized()) {
+        return false;
+    }
+
+    return _serial_led.send(chan);
+}
+#endif // HAL_SERIALLED_ENABLED

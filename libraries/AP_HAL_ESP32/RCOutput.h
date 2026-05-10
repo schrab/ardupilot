@@ -27,6 +27,10 @@
 #include "driver/gpio.h"
 #include "driver/mcpwm_prelude.h"
 
+#if HAL_SERIALLED_ENABLED
+#include "SerialLED_RMT.h"
+#endif
+
 namespace ESP32
 {
 
@@ -98,6 +102,12 @@ public:
 
     void timer_tick() override;
 
+#if HAL_SERIALLED_ENABLED
+    // SerialLED support methods
+    bool set_serial_led_num_LEDs(const uint16_t chan, uint8_t num_leds, output_mode mode = MODE_PWM_NONE, uint32_t clock_mask = 0) override;
+    bool set_serial_led_rgb_data(const uint16_t chan, int8_t led, uint8_t red, uint8_t green, uint8_t blue) override;
+    bool serial_led_send(const uint16_t chan) override;
+#endif
 
 private:
 
@@ -153,6 +163,10 @@ private:
 
 
     bool _initialized;
+
+#if HAL_SERIALLED_ENABLED
+    SerialLED_RMT _serial_led;
+#endif
 
 };
 
