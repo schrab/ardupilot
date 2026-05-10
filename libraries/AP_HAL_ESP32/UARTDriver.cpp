@@ -17,8 +17,10 @@
 #include <AP_Math/AP_Math.h>
 
 #include "esp_log.h"
+#include <stdio.h>
 
 extern const AP_HAL::HAL& hal;
+static bool in_vprintf;
 
 namespace ESP32
 {
@@ -27,10 +29,13 @@ UARTDesc uart_desc[] = {HAL_ESP32_UART_DEVICES};
 
 void UARTDriver::vprintf(const char *fmt, va_list ap)
 {
-
-    uart_port_t p = uart_desc[uart_num].port;
-    if (p == 0) {
-        esp_log_writev(ESP_LOG_INFO, "", fmt, ap);
+    if (uart_num == 255) {
+        if (in_vprintf) {
+            return;
+        }
+        in_vprintf = true;
+        ::vprintf(fmt, ap);
+        in_vprintf = false;
     } else {
         AP_HAL::UARTDriver::vprintf(fmt, ap);
     }
@@ -172,8 +177,12 @@ void IRAM_ATTR UARTDriver::write_data()
     do {
         count = _writebuf.peekbytes(_buffer, sizeof(_buffer));
         if (count > 0) {
-            count = uart_tx_chars(p, (const char*) _buffer, count);
-            _writebuf.advance(count);
+            int sent = uart_tx_chars(p, (const char*) _buffer, count);
+            if (sent > 0) {
+                _writebuf.advance(sent);
+            } else {
+                break;
+            }
         }
     } while (count > 0);
     _write_mutex.give();
@@ -181,6 +190,11 @@ void IRAM_ATTR UARTDriver::write_data()
 
 size_t IRAM_ATTR UARTDriver::_write(const uint8_t *buffer, size_t size)
 {
+    if (uart_num == 255) {
+        fwrite(buffer, 1, size, stdout);
+        return size;
+    }
+
     if (!_initialized) {
         return 0;
     }

@@ -33,7 +33,7 @@
 #include <AP_HAL/SIMState.h>
 #endif
 
-static ESP32::UARTDriver cons(0);
+static ESP32::UARTDriver cons(255);
 #ifdef HAL_ESP32_WIFI
 #if HAL_ESP32_WIFI == 1
 static ESP32::WiFiDriver serial1Driver; //tcp, client should connect to 192.168.4.1 port 5760
@@ -45,9 +45,10 @@ static Empty::UARTDriver serial1Driver;
 #else
 static Empty::UARTDriver serial1Driver;
 #endif
-static ESP32::UARTDriver serial2Driver(1);
-static ESP32::UARTDriver serial3Driver(2);
-static Empty::UARTDriver serial4Driver;
+static ESP32::UARTDriver uartB(0); // Hardware UART 1
+static ESP32::UARTDriver uartC(1); // Hardware UART 2
+static ESP32::UARTDriver uartD(2); // Hardware UART 3 (if exists)
+static Empty::UARTDriver uartEmpty;
 static Empty::UARTDriver serial5Driver;
 static Empty::UARTDriver serial6Driver;
 static Empty::UARTDriver serial7Driver;
@@ -94,22 +95,22 @@ extern const AP_HAL::HAL& hal;
 
 HAL_ESP32::HAL_ESP32() :
     AP_HAL::HAL(
-        &serial1Driver, //Console/mavlink via WiFi UDP
-        &cons, //Telem 1 / GPS on UART1 (GPIO16/15)
-        &serial2Driver, //Telem 2
-        &serial3Driver, //GPS 1
-        &serial4Driver, //GPS 2
-        &serial5Driver, //Extra 1
-        &serial6Driver, //Extra 2
-        &serial7Driver, //Extra 3
-        &serial8Driver, //Extra 4
-        &serial9Driver, //Extra 5
+        &serial1Driver, // SERIAL0: WiFi
+        &uartB,         // SERIAL1: GPS on UART1
+        &uartC,         // SERIAL2: ELRS on UART2
+        &uartD,         // SERIAL3: MTF-01 on UART3 (if exists)
+        &uartEmpty,     // SERIAL4
+        &serial5Driver, // SERIAL5
+        &serial6Driver, // SERIAL6
+        &serial7Driver, // SERIAL7
+        &serial8Driver, // SERIAL8
+        &serial9Driver, // SERIAL9
         &i2cDeviceManager,
         &spiDeviceManager,
         nullptr,
         &analogIn,
         &storageDriver,
-        &cons,
+        &cons,          // console
         &gpioDriver,
         &rcinDriver,
         &rcoutDriver,
