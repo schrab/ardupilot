@@ -990,6 +990,7 @@ bool AP_InertialSensor_Invensense::_check_whoami(void)
         return true;
     }
     // not a value WHOAMI result
+    printf("Invensense: WHOAMI failed, read 0x%02x\n", whoami);
     return false;
 }
 
@@ -1043,7 +1044,7 @@ bool AP_InertialSensor_Invensense::_hardware_init(void)
         }
 
         /* bus-dependent initialization */
-        if ((_dev->bus_type() == AP_HAL::Device::BUS_TYPE_I2C) && (_mpu_type == Invensense_MPU9250 || _mpu_type == Invensense_ICM20789)) {
+        if ((_dev->bus_type() == AP_HAL::Device::BUS_TYPE_I2C) && (_mpu_type == Invensense_MPU9250 || _mpu_type == Invensense_ICM20789 || _mpu_type == Invensense_MPU6000)) {
             /* Enable I2C bypass to access internal device */
             _register_write(MPUREG_INT_PIN_CFG, BIT_BYPASS_EN);
         }

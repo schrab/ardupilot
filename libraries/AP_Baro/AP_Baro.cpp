@@ -329,6 +329,7 @@ void AP_Baro::calibrate(bool save)
     // let the barometer settle for a full second after startup
     // the MS5611 reads quite a long way off for the first second,
     // leading to about 1m of error if we don't wait
+#ifndef HAL_BARO_ALLOW_INIT_NO_BARO
     for (uint8_t i = 0; i < 10; i++) {
         uint32_t tstart = AP_HAL::millis();
         do {
@@ -340,6 +341,24 @@ void AP_Baro::calibrate(bool save)
         } while (!healthy());
         hal.scheduler->delay(100);
     }
+#else
+    if (_num_sensors == 0) {
+        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Baro: no sensors, skipping calibration loop");
+    } else {
+        for (uint8_t i = 0; i < 10; i++) {
+            uint32_t tstart = AP_HAL::millis();
+            do {
+                update();
+                if (AP_HAL::millis() - tstart > 500) {
+                    GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "Baro: unable to calibrate");
+                    return; // Return instead of config_error to prevent reboot
+                }
+                hal.scheduler->delay(10);
+            } while (!healthy());
+            hal.scheduler->delay(100);
+        }
+    }
+#endif
 
     // now average over 5 values for the ground pressure settings
     float sum_pressure[BARO_MAX_INSTANCES] = {0};
@@ -351,7 +370,12 @@ void AP_Baro::calibrate(bool save)
         do {
             update();
             if (AP_HAL::millis() - tstart > 500) {
+#ifdef HAL_BARO_ALLOW_INIT_NO_BARO
+                GCS_SEND_TEXT(MAV_SEVERITY_ERROR, "Baro: unable to calibrate");
+                return; // prevent reboot on ESP32
+#else
                 AP_BoardConfig::config_error("Baro: unable to calibrate");
+#endif
             }
         } while (!healthy());
         for (uint8_t i=0; i<_num_sensors; i++) {
@@ -616,6 +640,18 @@ void AP_Baro::_probe_icm20789(AP_HAL::I2CDevice *i2c_dev, AP_HAL::Device *mpu_de
  */
 void AP_Baro::init(void)
 {
+#if CONFIG_HAL_BOARD == HAL_BOARD_ESP32
+    // Force this on ESP32 to allow debugging I2C issues without reboot loops
+    #ifndef HAL_BARO_ALLOW_INIT_NO_BARO
+    #define HAL_BARO_ALLOW_INIT_NO_BARO 1
+    #endif
+#endif
+
+#ifdef HAL_BARO_ALLOW_INIT_NO_BARO
+    printf("Baro: HAL_BARO_ALLOW_INIT_NO_BARO is DEFINED\n");
+#else
+    printf("Baro: HAL_BARO_ALLOW_INIT_NO_BARO is NOT defined\n");
+#endif
     init_done = true;
 
     // always set field elevation to zero on reboot in the case user

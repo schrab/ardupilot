@@ -76,10 +76,12 @@ bool AP_Baro_BMP085::_init()
     uint8_t id;
 
     if (!_dev->read_registers(0xD0, &id, 1)) {
+        printf("BMP085: ID register read failed at 0x77\n");
         return false;
     }
 
     if (id!=0x55) {
+        printf("BMP085: wrong ID 0x%02x at 0x77\n", id);
         return false;    // not BMP180
     }
 
@@ -102,6 +104,7 @@ bool AP_Baro_BMP085::_init()
         }
     }
     if (!prom_ok) {
+        printf("BMP085: calibration data read failed at 0x77\n");
         return false;
     }
 

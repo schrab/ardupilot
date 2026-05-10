@@ -32,6 +32,10 @@ void Copter::init_ardupilot()
     rssi.init();
 #endif
 
+    // IMU must be initialised before baro and compass so I2C bypass
+    // on the MPU6050 is enabled and behind-MPU sensors are visible
+    ins.init(scheduler.get_loop_rate_hz());
+
     barometer.init();
 
     // setup telem slots with serial ports
@@ -209,9 +213,6 @@ void Copter::startup_INS_ground()
     // initialise ahrs (may push imu calibration into the mpu6000 if using that device).
     ahrs.init();
     ahrs.set_vehicle_class(AP_AHRS::VehicleClass::COPTER);
-
-    // Warm up and calibrate gyro offsets
-    ins.init(scheduler.get_loop_rate_hz());
 
     // reset ahrs including gyro bias
     ahrs.reset();
