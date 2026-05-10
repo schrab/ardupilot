@@ -860,41 +860,41 @@ void AP_GPS_NMEA::send_config(void)
             break;
         case 1:
             if (now_ms - _pcas_timestamp > 3000) {
-                port->printf("$PCAS01,115200*39\r\n");
-                _pcas_timestamp = now_ms;
+                nmea_printf(port, "$PCAS01,115200");
                 _pcas_state = 2;
+                _pcas_timestamp = now_ms;
             }
             break;
         case 2:
-            if (now_ms - _pcas_timestamp > 100) {
-                port->printf("$PCAS02,100*1C\r\n");
-                _pcas_timestamp = now_ms;
+            if (now_ms - _pcas_timestamp > 500) {
+                nmea_printf(port, "$PCAS02,100");
                 _pcas_state = 3;
+                _pcas_timestamp = now_ms;
             }
             break;
         case 3:
-            if (now_ms - _pcas_timestamp > 100) {
-                port->printf("$PCAS03,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0*1F\r\n");
-                _pcas_timestamp = now_ms;
+            if (now_ms - _pcas_timestamp > 500) {
+                nmea_printf(port, "$PCAS03,1,0,1,0,1,0,0,0,0,0,0,0,0,0,0");
                 _pcas_state = 4;
+                _pcas_timestamp = now_ms;
             }
             break;
         case 4:
-            if (now_ms - _pcas_timestamp > 100) {
-                port->printf("$PCAS04,3*1A\r\n");
-                _pcas_timestamp = now_ms;
+            if (now_ms - _pcas_timestamp > 500) {
+                nmea_printf(port, "$PCAS04,3");
                 _pcas_state = 5;
+                _pcas_timestamp = now_ms;
             }
             break;
         case 5:
-            if (now_ms - _pcas_timestamp > 100) {
-                port->printf("$PCAS02,100*1C\r\n");
+            if (now_ms - _pcas_timestamp > 500) {
+                nmea_printf(port, "$PCAS02,100");
                 _pcas_timestamp = now_ms;
                 _pcas_state = 6;
             }
             break;
         case 6:
-            if (now_ms - _pcas_timestamp > 100) {
+            if (now_ms - _pcas_timestamp > 500) {
                 _pcas_state = 7;
             }
             break;
@@ -922,26 +922,26 @@ void AP_GPS_NMEA::send_config(void)
     switch (get_type()) {
 #if AP_GPS_NMEA_UNICORE_ENABLED
     case AP_GPS::GPS_TYPE_UNICORE_MOVINGBASE_NMEA:
-        port->printf("\r\nCONFIG HEADING FIXLENGTH\r\n" \
-                     "CONFIG UNDULATION AUTO\r\n" \
-                     "CONFIG\r\n" \
-                     "UNIHEADINGA %.3f\r\n",
-                     rate_s);
+        port->write("\r\nCONFIG HEADING FIXLENGTH\r\n");
+        port->write("CONFIG UNDULATION AUTO\r\n");
+        port->write("CONFIG\r\n");
+        {
+            char buf[64];
+            hal.util->snprintf(buf, sizeof(buf), "UNIHEADINGA %.3f\r\n", rate_s);
+            port->write(buf);
+        }
         state.gps_yaw_configured = true;
         FALLTHROUGH;
 
     case AP_GPS::GPS_TYPE_UNICORE_NMEA: {
-        port->printf("\r\nAGRICA %.3f\r\n" \
-                     "MODE MOVINGBASE\r\n" \
-                     "GNGGA %.3f\r\n" \
-                     "GNRMC %.3f\r\n",
+        char nmea_buf[128];
+        hal.util->snprintf(nmea_buf, sizeof(nmea_buf), "\r\nAGRICA %.3f\r\nMODE MOVINGBASE\r\nGNGGA %.3f\r\nGNRMC %.3f\r\n",
                      rate_s, rate_s, rate_s);
+        port->write(nmea_buf);
         if (!_have_unicore_versiona) {
-            // get version information for logging if we don't have it yet
-            port->printf("VERSIONA\r\n");
+            port->write("VERSIONA\r\n");
             if (gps._save_config) {
-                // save config changes for fast startup
-                port->printf("SAVECONFIG\r\n");
+                port->write("SAVECONFIG\r\n");
             }
         }
         break;
@@ -949,14 +949,16 @@ void AP_GPS_NMEA::send_config(void)
 #endif // AP_GPS_NMEA_UNICORE_ENABLED
 
     case AP_GPS::GPS_TYPE_HEMI: {
-        port->printf(
-        "$JATT,NMEAHE,0\r\n" /* Prefix of GP on the HDT message */      \
-        "$JASC,GPGGA,%u\r\n" /* GGA at 5Hz */                            \
-        "$JASC,GPRMC,%u\r\n" /* RMC at 5Hz */                            \
-        "$JASC,GPVTG,%u\r\n" /* VTG at 5Hz */                            \
-        "$JASC,GPHDT,%u\r\n" /* HDT at 5Hz */                            \
-        "$JMODE,SBASR,YES\r\n" /* Enable SBAS */,
+        char buf[256];
+        hal.util->snprintf(buf, sizeof(buf),
+        "$JATT,NMEAHE,0\r\n"
+        "$JASC,GPGGA,%u\r\n"
+        "$JASC,GPRMC,%u\r\n"
+        "$JASC,GPVTG,%u\r\n"
+        "$JASC,GPHDT,%u\r\n"
+        "$JMODE,SBASR,YES\r\n",
         rate_hz, rate_hz, rate_hz, rate_hz);
+        port->write(buf);
         break;
     }
 
@@ -971,7 +973,8 @@ void AP_GPS_NMEA::send_config(void)
 
 #ifdef AP_GPS_NMEA_CUSTOM_CONFIG_STRING
     // allow for custom config strings, useful for peripherals
-    port->printf("%s\r\n", AP_GPS_NMEA_CUSTOM_CONFIG_STRING);
+    port->write(AP_GPS_NMEA_CUSTOM_CONFIG_STRING);
+    port->write("\r\n");
 #endif
 }
 
