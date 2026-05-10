@@ -24,6 +24,8 @@
 #include "freertos/task.h"
 
 #include "esp_task_wdt.h"
+#include "esp_heap_caps.h"
+#include "esp_pm.h"
 
 #include <AP_HAL/AP_HAL.h>
 #include <AP_Scheduler/AP_Scheduler.h>
@@ -524,19 +526,34 @@ uint16_t IRAM_ATTR Scheduler::get_loop_rate_hz(void)
     return _active_loop_rate_hz;
 }
 
-// once every 60 seconds, print some stats...
+// once every 30 seconds, print task and heap diagnostics
 void Scheduler::print_stats(void)
 {
     static int64_t last_run = 0;
-    if (AP_HAL::millis64() - last_run > 60000) {
-        char buffer[1024];
+    if (AP_HAL::millis64() - last_run > 30000) {
+        char buffer[2048];
+        printf("\n=== Task Runtime Stats ===\n");
         vTaskGetRunTimeStats(buffer);
-        printf("\n\n%s\n", buffer);
-        heap_caps_print_heap_info(0);
+        printf("%s\n", buffer);
+        printf("=== Task States ===\n");
+        vTaskList(buffer);
+        printf("%s\n", buffer);
+        printf("=== Heap (DEFAULT) ===\n");
+        heap_caps_print_heap_info(MALLOC_CAP_DEFAULT);
+        printf("=== Heap (DMA) ===\n");
+        heap_caps_print_heap_info(MALLOC_CAP_DMA);
+        {
+            multi_heap_info_t dma_info;
+            heap_caps_get_info(&dma_info, MALLOC_CAP_DMA);
+            printf("DMA trend: free=%u alloc_blocks=%u free_blocks=%u largest=%u min_free=%u\n",
+                   (unsigned)dma_info.total_free_bytes,
+                   (unsigned)dma_info.allocated_blocks,
+                   (unsigned)dma_info.free_blocks,
+                   (unsigned)dma_info.largest_free_block,
+                   (unsigned)dma_info.minimum_free_bytes);
+        }
         last_run = AP_HAL::millis64();
     }
-
-    // printf("loop_rate_hz: %d",get_loop_rate_hz());
 }
 
 // Run every 10s
@@ -610,10 +627,8 @@ void IRAM_ATTR Scheduler::_main_thread(void *arg)
         };
 
         // run stats periodically
-#ifdef SCHEDDEBUG
-        sched->print_stats();
-#endif
-        sched->print_main_loop_rate();
+        // sched->print_stats();
+        // sched->print_main_loop_rate();
 
         if (ESP_OK != esp_task_wdt_reset()) {
             printf("esp_task_wdt_reset() failed\n");

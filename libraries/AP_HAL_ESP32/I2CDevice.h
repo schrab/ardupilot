@@ -23,7 +23,7 @@
 #include "Scheduler.h"
 #include "DeviceBus.h"
 
-#include "driver/i2c.h"
+#include "driver/i2c_master.h"
 #include "i2c_sw.h"
 
 namespace ESP32
@@ -42,7 +42,7 @@ class I2CBus : public  DeviceBus
 {
 public:
     I2CBus():DeviceBus(Scheduler::I2C_PRIORITY) {};
-    i2c_port_t port;
+    i2c_master_bus_handle_t handle;
     uint32_t bus_clock;
     _i2c_bus_t sw_handle;
     bool soft;
@@ -102,6 +102,7 @@ public:
 
 protected:
     I2CBus &bus;
+    i2c_master_dev_handle_t dev_handle;
     uint8_t _retries;
     uint8_t _address;
     char *pname;
@@ -123,10 +124,11 @@ public:
         return static_cast<I2CDeviceManager*>(i2c_mgr);
     }
 
+    void init();
     AP_HAL::I2CDevice *get_device_ptr(uint8_t bus, uint8_t address,
-            uint32_t bus_clock=400000,
-            bool use_smbus = false,
-            uint32_t timeout_ms=4) override;
+                                      uint32_t bus_clock=400000,
+                                      bool use_smbus = false,
+                                      uint32_t timeout_ms=4) override;
 
     /*
       get mask of bus numbers for all configured I2C buses
