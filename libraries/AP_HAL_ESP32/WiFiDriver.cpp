@@ -293,6 +293,7 @@ void WiFiDriver::initialize_wifi()
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
+    esp_wifi_set_max_tx_power(8);
 
     hal.console->printf("WiFi softAP init finished. SSID: %s password: %s channel: %d\n",
                         wifi_config.ap.ssid, wifi_config.ap.password, wifi_config.ap.channel);

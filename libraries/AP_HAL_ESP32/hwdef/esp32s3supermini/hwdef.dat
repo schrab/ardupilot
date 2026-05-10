@@ -6,7 +6,7 @@ MCU ESP32S3
 define HAL_ESP32_BOARD_NAME "esp32s3supermini"
 define HAL_ESP32_RMT_RX_PIN_NUMBER GPIO_NUM_NC
 
-# WiFi (Enabled - now with proper 4MB partition table)
+# WiFi (Re-enabled)
 define HAL_ESP32_WIFI 2
 
 # WiFi AP credentials
@@ -17,26 +17,25 @@ define WIFI_PWD "ardupilot123"
 define HAL_USE_SERIAL0_USB 1
 define HAL_STDOUT_USB 1
 define BOARD_STARTUP_DELAY 3000
+define HAL_BARO_ALLOW_INIT_NO_BARO 1
 
 # Default MAVLink on USB (serial0) and UDP (serial1)
 define DEFAULT_SERIAL0_PROTOCOL 1
-define DEFAULT_SERIAL1_PROTOCOL 1
+define DEFAULT_SERIAL1_PROTOCOL 5
 
-# -----I2C Bus-----
-# Using your working pins 8 and 9
-ESP32_I2CBUS  I2C_NUM_0  GPIO_NUM_8  GPIO_NUM_9  400*KHZ  false     false
+# -----I2C Bus (Software Bit-bang for maximum stability)-----
+ESP32_I2CBUS  I2C_NUM_0  GPIO_NUM_8  GPIO_NUM_9  400*KHZ  false  false
 
-# MPU6500 + BMP280 Probes
+# ----- Sensors (GY-91: MPU6050 + BMP180@0x77 + QMC5883P@0x2C behind MPU) -----
 IMU Invensense I2C:0:0x68 ROTATION_NONE
-IMU Invensense I2C:0:0x69 ROTATION_NONE
 define HAL_INS_DEFAULT HAL_INS_MPU60XX_I2C
 
-BARO BMP280 I2C:0:0x76
-BARO BMP280 I2C:0:0x77
+BARO BMP085 I2C:0:0x77
 
-# COMPASS
-COMPASS QMC5883L I2C:0:0x0D true ROTATION_NONE
+COMPASS QMC5883P I2C:0:0x2C true ROTATION_NONE
 define AP_COMPASS_ENABLE_DEFAULT 1
+
+define HAL_LOGGING_STACK_SIZE 5120
 
 # -----ADC (Battery)-----
 # GPIO1 = ADC1_CH0 (Safe Header)
@@ -44,11 +43,12 @@ ESP32_ADC_PIN ADC_UNIT_1    0    1
 
 # -----RC Output (PWM Motors)-----
 # Moving away from 12/13/3 to avoid Flash/Strapping conflicts
-# M1=2 (Header), M2=17 (Pad), M3=18 (Pad), M4=21 (Pad)
+# M1=2 (Header), M2=17 (Pad), M3=18 (Pad), M4=21 (Pad), M5=48 (LED - removed from servo channels)
 ESP32_RCOUT GPIO_NUM_2
 ESP32_RCOUT GPIO_NUM_17
 ESP32_RCOUT GPIO_NUM_18
 ESP32_RCOUT GPIO_NUM_21
+# GPIO48 removed from servo channels - used for SerialLED/NeoPixel
 
 # -----UARTs-----
 # UART1: GPS (Safe Pads 15/16)
@@ -57,7 +57,7 @@ ESP32_SERIAL  UART_NUM_1  GPIO_NUM_16  GPIO_NUM_15
 ESP32_SERIAL  UART_NUM_2  GPIO_NUM_44  GPIO_NUM_43
 
 # -----Logging & SD Card-----
-define HAL_ESP32_SDSPI {.host=SPI2_HOST, .dma_ch=SPI_DMA_CH_AUTO, .mosi=GPIO_NUM_6, .miso=GPIO_NUM_4, .sclk=GPIO_NUM_5, .cs=GPIO_NUM_7}
+define HAL_ESP32_SDMMC {.slot=1, .clk=GPIO_NUM_5, .cmd=GPIO_NUM_6, .d0=GPIO_NUM_4, .d3=GPIO_NUM_7}
 define HAL_ESP32_SDCARD 1
 define HAVE_FILESYSTEM_SUPPORT 1
 define HAL_OS_POSIX_IO 1
@@ -66,5 +66,11 @@ define AP_FILESYSTEM_ESP32_ENABLED 1
 
 define AP_SCRIPTING_ENABLED 0
 define AP_GPS_NMEA_PCAS_ENABLED 1
+
+# -----SerialLED (WS2812 RGB LED)-----
+define HAL_SERIALLED_ENABLED 1
+define AP_NOTIFY_NEOPIXEL_ENABLED 1
+define AP_NOTIFY_NEOPIXEL_MASK (1U<<4)  # GPIO48 as LED channel 4 (M5 servo)
+define AP_NOTIFY_LED_TYPE 1  # Notify_LED_NeoPixel
 
 AUTOBUILD_TARGETS Copter

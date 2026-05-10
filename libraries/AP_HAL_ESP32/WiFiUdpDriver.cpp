@@ -148,12 +148,9 @@ bool WiFiUdpDriver::read_all()
     int count = recvfrom(accept_socket, _buffer, sizeof(_buffer) - 1, 0, (struct sockaddr *)&client_addr, &socklen);
     if (count > 0) {
         _readbuf.write(_buffer, count);
-        _read_mutex.give();
-    } else {
-        return false;
     }
     _read_mutex.give();
-    return true;
+    return count > 0;
 }
 
 bool WiFiUdpDriver::write_data()
@@ -262,6 +259,7 @@ void WiFiUdpDriver::initialize_wifi()
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
+    esp_wifi_set_max_tx_power(8);
 
     hal.console->printf("WiFi softAP init finished. SSID: %s password: %s channel: %d\n",
                         wifi_config.ap.ssid, wifi_config.ap.password, wifi_config.ap.channel);
@@ -335,6 +333,10 @@ void WiFiUdpDriver::initialize_wifi()
 size_t WiFiUdpDriver::_write(const uint8_t *buffer, size_t size)
 {
     if (!_write_mutex.take_nonblocking()) {
+        return 0;
+    }
+    if (txspace() < size) {
+        _write_mutex.give();
         return 0;
     }
     size_t ret = _writebuf.write(buffer, size);

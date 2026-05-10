@@ -12,10 +12,10 @@ ArduPilot target for the [ESP32-S3 Super Mini](https://www.espboards.dev/esp32/e
 
 Target is configured for:
 - **GY-91 IMU breakout** (MPU6500 + BMP280) via I2C (0x68/0x69 for MPU6500, 0x76/0x77 for BMP280)
-- **HMC5883L/QMC5883L** compass via I2C (0x1E/0x0D)
+- **QMC5883L** compass via I2C (0x1E/0x0D)
 - **NMEA GPS** via UART1 (GPIO16 RX / GPIO15 TX)
 - **SD Card** via SDSPI (GPIO4/5/6/7)
-- **ELRS Receiver (CRSF)** via UART2 (GPIO44/43)
+- **MTF-01 ToF/OF sensor** via UART2 (GPIO44/43)
 - **PWM Motors** (GPIO2/17/18/21)
 
 ## Wiring Guide
@@ -95,6 +95,28 @@ Connect via WiFi UDP:
 - SSID: `ardupilot` / Password: `ardupilot123` (updated from `hwdef.dat`)
 - In Mission Planner: UDP Client → `192.168.4.1:14550`
 
+## GPS Configuration (ATGM336H-5N)
+
+GPS on SERIAL1 (UART1, GPIO16 RX / GPIO15 TX) using the ATGM336H-5N NMEA module.
+
+### Working Setup
+- **GPS1_TYPE**: 5 (NMEA)
+- **GPS_AUTO_CONFIG**: 1 (required — PCAS commands are skipped when disabled)
+- **SERIAL1_BAUD**: 115 (115200)
+- **Default rate**: 10Hz (PCAS02,100)
+- **Sentences**: GGA+GSA+RMC — GSA is always emitted even without fix, preventing driver timeout during signal loss
+
+### How it works (esp-fc approach)
+The PCAS state machine sends configuration commands with 100ms gaps at the detected baud. **No MCU baud change** (`port->begin()`) is performed:
+
+1. GPS detected at 9600 (factory default) or 115200
+2. PCAS01 sent at detected baud → GPS switches to 115200
+3. Remaining commands (PCAS02 rate, PCAS03 sentences) sent at same baud
+4. If baud changed: MCU at 9600 can't hear GPS at 115200 → 10s timeout → re-detection at 115200 → new instance configures at 115200
+5. If already at 115200: commands take effect immediately
+
+This is guarded by `AP_GPS_NMEA_PCAS_ENABLED` (defined in `hwdef.dat`).
+
 ## Boot Troubleshooting & Known Issues
 
 ### Watchdog Crash on First Boot
@@ -132,6 +154,25 @@ The ~10s gap between `ALLOC: skipped` and `QMC5883L found` is spent in:
 - **First boot**: Full baro calibration runs, WiFi AP setup, NVS partition init — slowest
 - **After watchdog reset**: `was_watchdog_reset()` returns true, baro calibration may be skipped
 - **Normal reboot**: All caches warm, NVS initialized, fastest boot path
+
+### RMT TX Watchdog Crash (NeoPixel)
+
+The RMT peripheral used for NeoPixel LED output can hang due to a hardware conflict with MCPWM on ESP32-S3, causing the task watchdog (TWDT) to fire.
+
+**Root cause:** When RMT TX hangs, `rmt_wait_tx_done()` times out but the internal `tx_sem` semaphore is never returned. Every subsequent `rmt_write_items()` call blocks forever, starving `APM_MAIN` and triggering the TWDT after 120s.
+
+**Fix (applied in `SerialLED_RMT.cpp/.h`):**
+1. Added `bool broken` flag to `ChannelState` — set on RMT TX timeout
+2. `send()` skips broken channels and calls `rmt_driver_uninstall()` to release resources
+3. Prevents re-entrant blocking on the leaked semaphore
+
+The NeoPixel LED stops functioning after a hang, but the flight controller remains operational.
+
+### WiFi UDP Driver Mutex Leak
+
+WiFi UDP packet handling (`read_all()` in `WiFiUdpDriver.cpp`) had a mutex leak: on `recvfrom` failure (e.g. spurious wakeup or socket error), the `_read_mutex` was never released, causing `APM_WIFI2` to deadlock on subsequent socket reads.
+
+**Fix:** Restructured `read_all()` to always call `_read_mutex.give()` before returning, regardless of the `recvfrom` result.
 
 ### "eFuse MAC_CUSTOM is empty" Error
 This is an ESP-IDF warning (not ArduPilot) printed at ~17s. It occurs when no custom MAC address is stored in eFuse. WiFi falls back to the default MAC from BLK0. **Harmless** — does not affect functionality.
