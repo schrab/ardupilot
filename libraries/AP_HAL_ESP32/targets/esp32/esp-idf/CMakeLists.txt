@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
 
-set(CMAKE_TOOLCHAIN_FILE $ENV{IDF_PATH}/tools/cmake/toolchain-esp32.cmake CACHE STRING "")
+set(CMAKE_TOOLCHAIN_FILE ${IDF_PATH}/tools/cmake/toolchain-esp32.cmake CACHE STRING "")
 
 project(ardupilot)
 
 # Include for ESP-IDF build system functions
-include($ENV{IDF_PATH}/tools/cmake/idf.cmake)
+include(${IDF_PATH}/tools/cmake/idf.cmake)
 
 # Create idf::esp32 and idf::freertos static libraries
 idf_build_process(esp32
