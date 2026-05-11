@@ -115,10 +115,9 @@ Agents **MUST** review these constraints before writing code. Ignoring these wil
 - **On ESP32-S3:** The SDMMC Slot 1 can be routed to almost any GPIO via the matrix.
 - **On Original ESP32:** SDMMC pins are *strictly fixed in hardware* (e.g., CMD=15, CLK=14, D0=2). You cannot arbitrarily route them. Verify chip datasheets before assigning SD pins in `hwdef.dat`.
 
-### 🔴 Constraint 4: NeoPixel (WS2812) Reserving RMT Channels
-**Applies to:** Especially critical on ESP32-S3.
-**The Trap:** Using the ESP32 RMT peripheral to drive NeoPixels when DShot is needed. The ESP32-S3 only has 4 RMT TX channels. If you use one for LEDs, you cannot support 4-motor DShot. (Original ESP32 has 8 channels, so it is less constrained).
-**The Solution:** Drive NeoPixels using an unused SPI bus via the `SerialLED_SPI` driver. Route the MOSI pin to the LED data line.
+### 🔴 Constraint 4: NeoPixel (WS2812) Hardware Selection
+**Applies to:** All ESP32 targets (critical on ESP32-S3).
+**The Rule:** Drive NeoPixels using an unused SPI bus via the `SerialLED_SPI` driver. Route the MOSI pin to the LED data line. **DO NOT** use the RMT peripheral to drive NeoPixels, as this consumes channels needed for DShot motor outputs.
 
 ### 🔴 Constraint 5: ESP-IDF v5.x CMake Toolchain Detection
 **Applies to:** All ESP32 targets building on IDF 5.x+.
