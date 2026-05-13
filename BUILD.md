@@ -181,15 +181,16 @@ list some basic and more used commands as example.
 
     Note: Your clang binary names may differ.
 
-- **Other options**
+- **ccache for faster builds**
 
-    It's possible to see all available commands and options:
+    Installing `ccache` will speed up your builds significantly by caching compiled objects.
 
-    ```bash
-    ./waf -h
-    ```
-
-    Also, take a look on the [Advanced section](#advanced-usage) below.
+    1. Install it (e.g., `sudo apt-get install ccache`).
+    2. Add `/usr/lib/ccache` to the front of your `PATH` in `~/.bashrc`:
+       ```sh
+       export PATH=/usr/lib/ccache:$PATH
+       ```
+    3. To ensure efficient logging and avoid console clutter, append `2>&1 | tail -20` to your build commands (e.g., `./waf copter 2>&1 | tail -20`) or use `grep` to isolate specific build steps.
 
 ### Using Docker
 
