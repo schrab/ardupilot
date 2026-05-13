@@ -258,4 +258,9 @@ bool sdcard_retry(void)
 {
     return true;
 }
+
+bool sdcard_ready(void)
+{
+    return false;
+}
 #endif

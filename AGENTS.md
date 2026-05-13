@@ -142,6 +142,7 @@ cd ardupilot
 ./waf clean           # Clean current board
 ./waf distclean       # Clean everything
 ```
+Read @BUILD.md for project building instructions.
 
 **Important:** Never run `waf` with `sudo`. Always call `./waf` from the repository root.
 
