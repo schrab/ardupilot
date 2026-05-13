@@ -146,7 +146,7 @@ Read @BUILD.md for project building instructions.
 
 **Important:** Never run `waf` with `sudo`. Always call `./waf` from the repository root.
 
-**ESP32-S3 Super Mini Note**: For `esp32s3supermini`, esp-idf is cloned to `~/esp-idf/` (not `modules/esp_idf`). Use ESP-IDF v5.4.2: `cd ~/esp-idf && git checkout v5.4.2 && git submodule update --init --recursive`. Install toolchain: `./install.sh esp32s3` (installs Python deps + toolchain). Before building: `source ~/esp-idf/export.sh && cd /home/ubuntu/ardupilot && ./waf configure --board=esp32s3supermini && ./waf copter`. Missing Python packages (`empy`, `pexpect`) can be installed via `python -m pip install empy==3.3.4 pexpect`.
+**ESP32-S3 Super Mini Note**: For `esp32s3supermini`, esp-idf is cloned to `~/esp-idf/` (not `modules/esp_idf`). Use ESP-IDF v5.5.4: `cd ~/esp-idf && git checkout v5.5.4 && git submodule update --init --recursive`. Install toolchain: `./install.sh esp32s3` (installs Python deps + toolchain). Before building: `source ~/esp-idf/export.sh && cd /home/ubuntu/ardupilot && ./waf configure --board=esp32s3supermini && ./waf copter`. Missing Python packages (`empy`, `pexpect`) can be installed via `python -m pip install empy==3.3.4 pexpect`.
 
 ---
 
