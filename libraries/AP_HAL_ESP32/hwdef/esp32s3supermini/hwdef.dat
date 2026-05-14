@@ -39,7 +39,7 @@ define HAL_LOGGING_STACK_SIZE 5120
 
 # -----ADC (Battery)-----
 # GPIO1 = ADC1_CH0 (Safe Header)
-ESP32_ADC_PIN ADC_UNIT_1    0    1
+ESP32_ADC_PIN ADC_CHANNEL_0    1.0    1
 
 # -----RC Output (PWM Motors)-----
 # Moving away from 12/13/3 to avoid Flash/Strapping conflicts
