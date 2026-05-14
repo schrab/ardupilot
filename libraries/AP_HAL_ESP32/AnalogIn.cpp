@@ -27,6 +27,8 @@
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "driver/gpio.h"
+#include "driver/rtc_io.h"
 #include "soc/adc_channel.h"
 #include "esp_adc/adc_oneshot.h"
 #include "esp_adc/adc_cali.h"
@@ -291,6 +293,16 @@ bool AnalogSource::adc_init()
         else {
             Debug("AnalogIn: adc_calibration_init for adc_channel = %d\n completed successfully", _adc_channel);
         }
+
+        // Disable internal pull-up and pull-down resistors to avoid interfering with ADC readings
+        int io_num = -1;
+        if (ESP_OK == adc_oneshot_channel_to_io(_adc_unit, _adc_channel, &io_num) && io_num >= 0) {
+            rtc_gpio_init((gpio_num_t)io_num);
+            rtc_gpio_set_direction((gpio_num_t)io_num, RTC_GPIO_MODE_INPUT_ONLY);
+            rtc_gpio_pullup_dis((gpio_num_t)io_num);
+            rtc_gpio_pulldown_dis((gpio_num_t)io_num);
+            Debug("AnalogIn: disabled RTC pull-up/down for IO %d\n", io_num);
+        }
     }
     else {
         Debug("AnalogIn: adc_init(%d) skipped.\n",  _ardupin);
@@ -301,6 +313,10 @@ bool AnalogSource::adc_init()
 // read value from ADC
 float AnalogSource::adc_read()
 {
+    if (_adc_channel == ANALOG_INPUT_NONE) {
+        return 0;
+    }
+
     int raw, value = 0;
 
     if (ESP_OK != adc_oneshot_read(g_adc1_handle, _adc_channel, &raw)) {
